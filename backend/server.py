@@ -465,11 +465,17 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         is_mostly_questions = question_count > 1 or (question_count == 1 and starts_with_question and len(clean_response) < 200)
         
         # Show buttons ONLY for final solutions (not initial questions or investigations)
-        # Must have multiple solutions AND minimal questions
-        is_final_solution = has_numbered_list and has_solutions and question_count == 0
-        is_comprehensive_advice = has_solutions and len(clean_response) > 300 and question_count <= 1
+        # Must have multiple solutions AND minimal questions AND be comprehensive
+        is_final_solution = has_numbered_list and has_solutions and question_count == 0 and len(clean_response) > 400
+        is_comprehensive_advice = has_solutions and len(clean_response) > 500 and question_count == 0 and has_numbered_list
         
-        should_show_buttons = not escalate and not is_follow_up and (is_final_solution or is_comprehensive_advice) and not is_mostly_questions
+        # Additional check: the user message should indicate they've already tried something or need specific help
+        user_seeking_final_help = any(phrase in message.lower() for phrase in [
+            "i've tried", "i have tried", "nothing changes", "need specific", "need help with", 
+            "what should i do", "how do i handle", "need strategies", "need advice"
+        ])
+        
+        should_show_buttons = not escalate and not is_follow_up and (is_final_solution or is_comprehensive_advice) and not is_mostly_questions and user_seeking_final_help
         
         logging.info(f"Resolution buttons logic: escalate={escalate}, is_follow_up={is_follow_up}, has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
         logging.info(f"Response snippet for analysis: {clean_response[:200]}...")
