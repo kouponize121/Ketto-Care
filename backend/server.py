@@ -478,7 +478,7 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
                 db.commit()
                 conversation_id = pending_conversation.id
         
-        logging.info(f"Escalation decision: escalate={escalate}, category={category}, severity={severity}")
+        logging.info(f"Final escalation decision: escalate={escalate}, category={category}, severity={severity}")
         
         # Clean AI response from escalation markers
         clean_response = ai_response
@@ -514,8 +514,9 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         # Show buttons if: not escalating, not follow-up, has solutions, not primarily questions
         should_show_buttons = not escalate and not is_follow_up and has_solutions and not is_mostly_questions
         
-        logging.info(f"Resolution buttons logic: has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
+        logging.info(f"Resolution buttons logic: escalate={escalate}, is_follow_up={is_follow_up}, has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
         logging.info(f"Response snippet for analysis: {clean_response[:200]}...")
+        logging.info(f"Solution indicators found: {[ind for ind in solution_indicators if ind in clean_response.lower()]}")
         
         return {
             "response": clean_response.strip(),
