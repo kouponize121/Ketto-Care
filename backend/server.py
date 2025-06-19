@@ -361,29 +361,29 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         logging.info(f"Raw AI response: {ai_response[:200]}...")
         
         # Enhanced escalation logic
-            # Check for escalation markers from AI
-            response_upper = ai_response.upper()
-            if "ESCALATE: TRUE" in response_upper or "ESCALATE:TRUE" in response_upper:
-                escalate = True
-                logging.info("Escalation detected from AI response markers")
-            
-            # Force escalation for critical keywords
-            critical_keywords = ["harassment", "harass", "discriminat", "abuse", "threat", "unsafe", "sexual"]
-            if any(keyword in message.lower() for keyword in critical_keywords):
-                escalate = True
-                category = "grievance"
-                severity = "critical"
-                summary = f"Serious workplace concern: {message[:80]}..."
-                logging.info(f"Force escalating due to critical keywords in message: {message}")
-            
-            # Auto-escalate follow-ups indicating unresolved issues
-            unresolved_indicators = ["no", "not really", "still having", "doesn't help", "not resolved", "still struggling", "not working"]
-            if is_follow_up and any(indicator in message.lower() for indicator in unresolved_indicators):
-                escalate = True
-                category = "request"
-                severity = "medium"
-                summary = f"Unresolved workplace concern: {pending_conversation.initial_concern[:60]}..." if pending_conversation else summary
-                logging.info("Auto-escalating follow-up with unresolved issue")
+        # Check for escalation markers from AI
+        response_upper = ai_response.upper()
+        if "ESCALATE: TRUE" in response_upper or "ESCALATE:TRUE" in response_upper:
+            escalate = True
+            logging.info("Escalation detected from AI response markers")
+        
+        # Force escalation for critical keywords
+        critical_keywords = ["harassment", "harass", "discriminat", "abuse", "threat", "unsafe", "sexual", "posh"]
+        if any(keyword in message.lower() for keyword in critical_keywords):
+            escalate = True
+            category = "grievance"
+            severity = "critical"
+            summary = f"Serious workplace concern: {message[:80]}..."
+            logging.info(f"Force escalating due to critical keywords in message: {message}")
+        
+        # Auto-escalate follow-ups indicating unresolved issues
+        unresolved_indicators = ["no", "not really", "still having", "doesn't help", "not resolved", "still struggling", "not working"]
+        if is_follow_up and any(indicator in message.lower() for indicator in unresolved_indicators):
+            escalate = True
+            category = "request"
+            severity = "medium"
+            summary = f"Unresolved workplace concern: {pending_conversation.initial_concern[:60]}..." if pending_conversation else summary
+            logging.info("Auto-escalating follow-up with unresolved issue")
         
         # Extract escalation details from AI response
         if escalate:
