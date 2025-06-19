@@ -1367,8 +1367,628 @@ def comprehensive_test():
     
     return 0 if tester.tests_passed == tester.tests_run else 1
 
+def test_posh_complaint():
+    """Test POSH complaint ticket creation"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing POSH complaint ticket creation at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return False
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return False
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return False
+    
+    # Test admin login
+    admin_login_success = tester.test_admin_login()
+    if not admin_login_success:
+        print("❌ Admin login failed, stopping tests")
+        return False
+    
+    # Send POSH complaint message
+    print("\n🔍 Testing POSH complaint ticket creation")
+    success, response = tester.run_test(
+        "POSH complaint",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I want to raise a POSH complaint against my manager", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        ticket_created = response.get('ticket_created', False)
+        ticket_id = response.get('ticket_id')
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Ticket Created: {ticket_created}")
+        
+        if ticket_created and ticket_id:
+            print(f"✅ POSH complaint automatically escalated to ticket: {ticket_id}")
+            tester.test_ticket_id = ticket_id
+            
+            # Check if employee can see the ticket
+            print("\n🔍 Checking if employee can see the ticket")
+            success, employee_tickets = tester.test_get_tickets()
+            if success:
+                employee_ticket = next((t for t in employee_tickets if t['id'] == ticket_id), None)
+                if employee_ticket:
+                    print("✅ Employee can see the POSH complaint ticket")
+                else:
+                    print("❌ Employee cannot see the POSH complaint ticket")
+                    return False
+            else:
+                print("❌ Failed to get employee tickets")
+                return False
+            
+            # Check if admin can see the ticket
+            print("\n🔍 Checking if admin can see the ticket")
+            success, admin_tickets = tester.test_admin_get_tickets()
+            if success:
+                admin_ticket = next((t for t in admin_tickets if t['id'] == ticket_id), None)
+                if admin_ticket:
+                    print("✅ Admin can see the POSH complaint ticket")
+                    return True
+                else:
+                    print("❌ Admin cannot see the POSH complaint ticket")
+                    return False
+            else:
+                print("❌ Failed to get admin tickets")
+                return False
+        else:
+            print("❌ POSH complaint not automatically escalated")
+            return False
+    else:
+        print("❌ Failed to send POSH complaint message")
+        return False
+
+def test_resolution_buttons_logic():
+    """Test resolution buttons logic"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing resolution buttons logic at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return False
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return False
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return False
+    
+    # Test initial questions (should NOT show buttons)
+    print("\n🔍 Testing initial questions (should NOT show buttons)")
+    success, response = tester.run_test(
+        "Initial question",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I'm feeling stressed at work", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        # Check if the response is a question (investigative)
+        is_question = '?' in ai_response
+        print(f"Response contains question: {is_question}")
+        
+        if is_question and not show_resolution_buttons:
+            print("✅ Initial question does NOT show resolution buttons")
+        else:
+            if not is_question:
+                print("❌ AI response is not a question for initial message")
+            if show_resolution_buttons:
+                print("❌ Resolution buttons shown for initial question")
+            return False
+    else:
+        print("❌ Failed to send initial question")
+        return False
+    
+    # Test investigative response (should NOT show buttons)
+    print("\n🔍 Testing investigative response (should NOT show buttons)")
+    success, response = tester.run_test(
+        "Follow-up to initial question",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I have too much work and not enough time", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        # Check if the response contains solutions
+        solution_indicators = [
+            "suggest", "recommend", "approach", "option", "step", 
+            "schedule a", "discuss with", "consider", "try", "focus on"
+        ]
+        has_solutions = any(indicator in ai_response.lower() for indicator in solution_indicators)
+        has_numbered_list = '1.' in ai_response and '2.' in ai_response
+        
+        print(f"Response has solutions: {has_solutions}")
+        print(f"Response has numbered list: {has_numbered_list}")
+        
+        if has_solutions and has_numbered_list and show_resolution_buttons:
+            print("✅ Comprehensive solution shows resolution buttons")
+            
+            # Get the conversation ID for testing resolution
+            conversation_id = response.get('conversation_id')
+            if conversation_id:
+                # Test "This helps" button
+                print("\n🔍 Testing 'This helps' button")
+                success, helpful_response = tester.test_resolution_endpoint(conversation_id, 'helpful')
+                if success:
+                    if not helpful_response.get('ticket_created', False):
+                        print("✅ 'This helps' button correctly does not create a ticket")
+                    else:
+                        print("❌ 'This helps' button should not create a ticket")
+                        return False
+                else:
+                    print("❌ Failed to test 'This helps' button")
+                    return False
+                
+                return True
+            else:
+                print("❌ No conversation ID found")
+                return False
+        else:
+            if not has_solutions or not has_numbered_list:
+                print("❌ AI response does not contain comprehensive solutions")
+            if not show_resolution_buttons:
+                print("❌ Resolution buttons not shown for comprehensive solution")
+            return False
+    else:
+        print("❌ Failed to send follow-up message")
+        return False
+
+def test_ticket_visibility():
+    """Test ticket visibility for employee and admin"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing ticket visibility at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return False
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return False
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return False
+    
+    # Test admin login
+    admin_login_success = tester.test_admin_login()
+    if not admin_login_success:
+        print("❌ Admin login failed, stopping tests")
+        return False
+    
+    # Create a ticket by sending a critical message
+    print("\n🔍 Creating a ticket for visibility testing")
+    success, response = tester.run_test(
+        "Critical message",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I'm being harassed by my colleague", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success and response.get('ticket_created', False):
+        ticket_id = response.get('ticket_id')
+        print(f"✅ Ticket created: {ticket_id}")
+        tester.test_ticket_id = ticket_id
+        
+        # Check if employee can see the ticket
+        print("\n🔍 Checking if employee can see the ticket")
+        success, employee_tickets = tester.test_get_tickets()
+        if success:
+            employee_ticket = next((t for t in employee_tickets if t['id'] == ticket_id), None)
+            if employee_ticket:
+                print("✅ Employee can see their own ticket")
+                print(f"Ticket details: {employee_ticket}")
+            else:
+                print("❌ Employee cannot see their own ticket")
+                return False
+        else:
+            print("❌ Failed to get employee tickets")
+            return False
+        
+        # Check if admin can see the ticket
+        print("\n🔍 Checking if admin can see the ticket")
+        success, admin_tickets = tester.test_admin_get_tickets()
+        if success:
+            admin_ticket = next((t for t in admin_tickets if t['id'] == ticket_id), None)
+            if admin_ticket:
+                print("✅ Admin can see the employee's ticket")
+                print(f"Ticket details: {admin_ticket}")
+                return True
+            else:
+                print("❌ Admin cannot see the employee's ticket")
+                return False
+        else:
+            print("❌ Failed to get admin tickets")
+            return False
+    else:
+        print("❌ Failed to create a ticket for testing")
+        return False
+
+def test_no_mock_ai_fallback():
+    """Test that the system only uses OpenAI GPT API with no mock fallback"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing no mock AI fallback at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return False
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return False
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return False
+    
+    # Send multiple messages to check for consistent AI responses
+    test_messages = [
+        "How can I improve my work-life balance?",
+        "I'm having trouble with my manager",
+        "What are some stress management techniques?",
+        "How do I ask for a promotion?"
+    ]
+    
+    responses = []
+    for i, message in enumerate(test_messages):
+        print(f"\n🔍 Testing message {i+1}: '{message}'")
+        success, response = tester.run_test(
+            f"Message {i+1}",
+            "POST",
+            "api/chat",
+            200,
+            data={"message": message, "user_id": tester.employee_id},
+            token=tester.token
+        )
+        
+        if success:
+            ai_response = response.get('response', '')
+            print(f"AI Response: {ai_response[:150]}...")
+            responses.append(ai_response)
+        else:
+            print(f"❌ Failed to send message {i+1}")
+            return False
+        
+        # Small delay between requests
+        time.sleep(1)
+    
+    # Check for signs of mock responses
+    mock_indicators = [
+        "I apologize, but I'm experiencing technical difficulties",
+        "I'm unable to connect to the AI system",
+        "Our AI assistant is currently unavailable",
+        "Please try again later",
+        "Technical support needed - AI assistant unavailable"
+    ]
+    
+    for i, response in enumerate(responses):
+        for indicator in mock_indicators:
+            if indicator.lower() in response.lower():
+                print(f"❌ Found mock response indicator in message {i+1}: '{indicator}'")
+                return False
+    
+    print("✅ No mock response indicators found in any responses")
+    return True
+
+def test_end_to_end_workflow():
+    """Test the end-to-end workflow"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing end-to-end workflow at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return False
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return False
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return False
+    
+    # Test admin login
+    admin_login_success = tester.test_admin_login()
+    if not admin_login_success:
+        print("❌ Admin login failed, stopping tests")
+        return False
+    
+    # Step 1: Employee raises serious concern
+    print("\n🔍 Step 1: Employee raises serious concern")
+    success, response = tester.run_test(
+        "Serious concern",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I want to report sexual harassment by my team lead", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success and response.get('ticket_created', False):
+        ticket_id = response.get('ticket_id')
+        print(f"✅ Ticket automatically created: {ticket_id}")
+        tester.test_ticket_id = ticket_id
+        
+        # Check if employee can see the ticket
+        success, employee_tickets = tester.test_get_tickets()
+        if success and any(t['id'] == ticket_id for t in employee_tickets):
+            print("✅ Employee can see the ticket")
+        else:
+            print("❌ Employee cannot see the ticket")
+            return False
+        
+        # Check if admin can see the ticket
+        success, admin_tickets = tester.test_admin_get_tickets()
+        if success and any(t['id'] == ticket_id for t in admin_tickets):
+            print("✅ Admin can see the ticket")
+        else:
+            print("❌ Admin cannot see the ticket")
+            return False
+        
+        # Step 2: Employee seeks workplace advice
+        print("\n🔍 Step 2: Employee seeks workplace advice")
+        success, response = tester.run_test(
+            "Workplace advice",
+            "POST",
+            "api/chat",
+            200,
+            data={"message": "I need help with time management, I've tried everything but I'm still struggling", "user_id": tester.employee_id},
+            token=tester.token
+        )
+        
+        if success:
+            ai_response = response.get('response', '')
+            show_resolution_buttons = response.get('show_resolution_buttons', False)
+            conversation_id = response.get('conversation_id')
+            
+            print(f"AI Response: {ai_response[:150]}...")
+            print(f"Show Resolution Buttons: {show_resolution_buttons}")
+            
+            # Check if the response contains solutions
+            solution_indicators = [
+                "suggest", "recommend", "approach", "option", "step", 
+                "schedule a", "discuss with", "consider", "try", "focus on"
+            ]
+            has_solutions = any(indicator in ai_response.lower() for indicator in solution_indicators)
+            has_numbered_list = '1.' in ai_response and '2.' in ai_response
+            
+            print(f"Response has solutions: {has_solutions}")
+            print(f"Response has numbered list: {has_numbered_list}")
+            
+            if has_solutions and has_numbered_list and show_resolution_buttons:
+                print("✅ Comprehensive solution shows resolution buttons")
+                
+                if conversation_id:
+                    # Step 3a: Test "This helps" button
+                    print("\n🔍 Step 3a: Testing 'This helps' button")
+                    success, helpful_response = tester.test_resolution_endpoint(conversation_id, 'helpful')
+                    if success:
+                        if not helpful_response.get('ticket_created', False):
+                            print("✅ 'This helps' button correctly does not create a ticket")
+                        else:
+                            print("❌ 'This helps' button should not create a ticket")
+                            return False
+                    else:
+                        print("❌ Failed to test 'This helps' button")
+                        return False
+                    
+                    # Step 3b: Start a new conversation for "Still need help" button
+                    print("\n🔍 Step 3b: Starting new conversation for 'Still need help' button")
+                    success, response = tester.run_test(
+                        "New workplace advice",
+                        "POST",
+                        "api/chat",
+                        200,
+                        data={"message": "I need strategies for dealing with difficult coworkers, I've tried talking to them but nothing works", "user_id": tester.employee_id},
+                        token=tester.token
+                    )
+                    
+                    if success and response.get('show_resolution_buttons') and response.get('conversation_id'):
+                        new_conversation_id = response.get('conversation_id')
+                        
+                        print("\n🔍 Testing 'Still need help' button")
+                        success, need_help_response = tester.test_resolution_endpoint(new_conversation_id, 'need_help')
+                        if success:
+                            if need_help_response.get('ticket_created', False):
+                                print("✅ 'Still need help' button correctly creates a ticket")
+                                new_ticket_id = need_help_response.get('ticket_id')
+                                
+                                # Step 4: Admin manages the ticket
+                                print("\n🔍 Step 4: Admin manages the ticket")
+                                update_data = {
+                                    "status": "in_progress",
+                                    "admin_notes": "Working on this issue"
+                                }
+                                
+                                success, _ = tester.run_test(
+                                    "Admin Update Ticket",
+                                    "PUT",
+                                    f"api/admin/tickets/{new_ticket_id}",
+                                    200,
+                                    data=update_data,
+                                    token=tester.admin_token
+                                )
+                                
+                                if success:
+                                    print("✅ Admin successfully updated the ticket")
+                                    
+                                    # Verify the update
+                                    success, admin_tickets = tester.test_admin_get_tickets()
+                                    if success:
+                                        updated_ticket = next((t for t in admin_tickets if t['id'] == new_ticket_id), None)
+                                        if updated_ticket and updated_ticket['status'] == 'in_progress':
+                                            print("✅ Ticket status updated correctly")
+                                            return True
+                                        else:
+                                            print("❌ Ticket status not updated correctly")
+                                            return False
+                                    else:
+                                        print("❌ Failed to verify ticket update")
+                                        return False
+                                else:
+                                    print("❌ Failed to update the ticket")
+                                    return False
+                            else:
+                                print("❌ 'Still need help' button should create a ticket")
+                                return False
+                        else:
+                            print("❌ Failed to test 'Still need help' button")
+                            return False
+                    else:
+                        print("❌ Failed to start new conversation for 'Still need help' button")
+                        return False
+                else:
+                    print("❌ No conversation ID found")
+                    return False
+            else:
+                if not has_solutions or not has_numbered_list:
+                    print("❌ AI response does not contain comprehensive solutions")
+                if not show_resolution_buttons:
+                    print("❌ Resolution buttons not shown for comprehensive solution")
+                return False
+        else:
+            print("❌ Failed to send workplace advice message")
+            return False
+    else:
+        print("❌ Failed to create a ticket for serious concern")
+        return False
+
 def main():
-    return comprehensive_test()
+    print("\n===== TESTING KETTO CARE APPLICATION =====\n")
+    
+    tests = [
+        ("POSH Complaint Ticket Creation", test_posh_complaint),
+        ("Resolution Buttons Logic", test_resolution_buttons_logic),
+        ("Ticket Visibility", test_ticket_visibility),
+        ("No Mock AI Fallback", test_no_mock_ai_fallback),
+        ("End-to-End Workflow", test_end_to_end_workflow)
+    ]
+    
+    results = {}
+    
+    for test_name, test_func in tests:
+        print(f"\n\n{'='*50}")
+        print(f"TESTING: {test_name}")
+        print(f"{'='*50}\n")
+        
+        try:
+            result = test_func()
+            results[test_name] = result
+            print(f"\nTest Result: {'✅ PASSED' if result else '❌ FAILED'}")
+        except Exception as e:
+            print(f"\n❌ ERROR: {str(e)}")
+            results[test_name] = False
+    
+    # Print summary
+    print("\n\n" + "="*50)
+    print("TEST SUMMARY")
+    print("="*50)
+    
+    all_passed = True
+    for test_name, result in results.items():
+        status = "✅ PASSED" if result else "❌ FAILED"
+        print(f"{test_name}: {status}")
+        if not result:
+            all_passed = False
+    
+    print("\nOVERALL RESULT: " + ("✅ ALL TESTS PASSED" if all_passed else "❌ SOME TESTS FAILED"))
+    
+    return 0 if all_passed else 1
 
 if __name__ == "__main__":
     main()
