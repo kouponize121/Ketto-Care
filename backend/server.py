@@ -212,6 +212,17 @@ class AIConversationModel(BaseModel):
     ai_solution_provided: str
     resolution_status: str = "pending"
 
+class EmailRecipientModel(BaseModel):
+    email: str
+    name: Optional[str] = None
+    recipient_type: str = "additional"  # additional, excluded_admin
+    notification_types: str = "all"  # JSON string or "all"
+    is_active: bool = True
+
+class EmailRecipientsUpdateModel(BaseModel):
+    additional_recipients: List[str] = []  # Additional emails to include
+    excluded_admin_emails: List[str] = []  # Admin emails to exclude
+
 # Helper functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
