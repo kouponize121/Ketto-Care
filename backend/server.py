@@ -1275,6 +1275,94 @@ async def get_gpt_config(current_user: User = Depends(get_admin_user), db: Sessi
         }
     return {}
 
+# Email Recipients Management
+@api_router.get("/admin/email-recipients")
+async def get_email_recipients(current_user: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    """Get all custom email recipients"""
+    recipients = db.query(EmailRecipient).filter(EmailRecipient.is_active == True).all()
+    
+    additional_recipients = []
+    excluded_admin_emails = []
+    
+    for recipient in recipients:
+        recipient_data = {
+            "id": recipient.id,
+            "email": recipient.email,
+            "name": recipient.name,
+            "notification_types": recipient.notification_types,
+            "created_at": recipient.created_at.isoformat()
+        }
+        
+        if recipient.recipient_type == "additional":
+            additional_recipients.append(recipient_data)
+        elif recipient.recipient_type == "excluded_admin":
+            excluded_admin_emails.append(recipient_data)
+    
+    return {
+        "additional_recipients": additional_recipients,
+        "excluded_admin_emails": excluded_admin_emails
+    }
+
+@api_router.post("/admin/email-recipients")
+async def update_email_recipients(
+    recipients_data: EmailRecipientsUpdateModel, 
+    current_user: User = Depends(get_admin_user), 
+    db: Session = Depends(get_db)
+):
+    """Update custom email recipients configuration"""
+    try:
+        # Clear existing recipients
+        db.query(EmailRecipient).delete()
+        
+        # Add additional recipients
+        for email in recipients_data.additional_recipients:
+            if email.strip():  # Skip empty emails
+                recipient = EmailRecipient(
+                    email=email.strip(),
+                    recipient_type="additional",
+                    notification_types="all",
+                    is_active=True
+                )
+                db.add(recipient)
+        
+        # Add excluded admin emails
+        for email in recipients_data.excluded_admin_emails:
+            if email.strip():  # Skip empty emails
+                recipient = EmailRecipient(
+                    email=email.strip(),
+                    recipient_type="excluded_admin",
+                    notification_types="all",
+                    is_active=True
+                )
+                db.add(recipient)
+        
+        db.commit()
+        
+        return {
+            "message": "Email recipients updated successfully",
+            "additional_count": len(recipients_data.additional_recipients),
+            "excluded_count": len(recipients_data.excluded_admin_emails)
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to update email recipients: {str(e)}")
+
+@api_router.delete("/admin/email-recipients/{recipient_id}")
+async def delete_email_recipient(
+    recipient_id: int,
+    current_user: User = Depends(get_admin_user), 
+    db: Session = Depends(get_db)
+):
+    """Delete a specific email recipient"""
+    recipient = db.query(EmailRecipient).filter(EmailRecipient.id == recipient_id).first()
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Email recipient not found")
+    
+    db.delete(recipient)
+    db.commit()
+    
+    return {"message": "Email recipient deleted successfully"}
+
 # Initialize admin user
 @api_router.post("/init-admin")
 async def initialize_admin(db: Session = Depends(get_db)):
