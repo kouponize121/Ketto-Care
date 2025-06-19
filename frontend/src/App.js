@@ -1964,85 +1964,94 @@ const AdminDashboard = () => {
           <div className="bg-white rounded-xl shadow-lg">
             <div className="p-6 border-b">
               <h2 className="text-lg font-semibold text-gray-900">Email Configuration</h2>
-              <p className="text-sm text-gray-600 mt-1">Configure SMTP settings for notifications</p>
+              <p className="text-sm text-gray-600 mt-1">Configure SMTP settings and notification recipients</p>
             </div>
 
-            <div className="p-6">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.target);
-                  const config = {
-                    smtp_server: formData.get('smtp_server'),
-                    smtp_port: parseInt(formData.get('smtp_port')),
-                    smtp_username: formData.get('smtp_username'),
-                    smtp_password: formData.get('smtp_password')
-                  };
-                  saveEmailConfig(config);
-                }}
-                className="space-y-6"
-              >
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      SMTP Server
-                    </label>
-                    <input
-                      type="text"
-                      name="smtp_server"
-                      defaultValue={emailConfig.smtp_server || ''}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="smtp.gmail.com"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      SMTP Port
-                    </label>
-                    <input
-                      type="number"
-                      name="smtp_port"
-                      defaultValue={emailConfig.smtp_port || ''}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="587"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Username
-                    </label>
-                    <input
-                      type="email"
-                      name="smtp_username"
-                      defaultValue={emailConfig.smtp_username || ''}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="your-email@gmail.com"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      name="smtp_password"
-                      defaultValue={emailConfig.smtp_password || ''}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="App Password"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"
+            <div className="p-6 space-y-8">
+              {/* SMTP Configuration */}
+              <div>
+                <h3 className="text-md font-semibold text-gray-900 mb-4">SMTP Settings</h3>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const config = {
+                      smtp_server: formData.get('smtp_server'),
+                      smtp_port: parseInt(formData.get('smtp_port')),
+                      smtp_username: formData.get('smtp_username'),
+                      smtp_password: formData.get('smtp_password')
+                    };
+                    saveEmailConfig(config);
+                  }}
+                  className="space-y-6"
                 >
-                  Save Email Settings
-                </button>
-              </form>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        SMTP Server
+                      </label>
+                      <input
+                        type="text"
+                        name="smtp_server"
+                        defaultValue={emailConfig.smtp_server || ''}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="smtp.gmail.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        SMTP Port
+                      </label>
+                      <input
+                        type="number"
+                        name="smtp_port"
+                        defaultValue={emailConfig.smtp_port || ''}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="587"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Username
+                      </label>
+                      <input
+                        type="email"
+                        name="smtp_username"
+                        defaultValue={emailConfig.smtp_username || ''}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="your-email@gmail.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        name="smtp_password"
+                        defaultValue={emailConfig.smtp_password || ''}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        placeholder="App Password"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition"
+                  >
+                    Save SMTP Settings
+                  </button>
+                </form>
+              </div>
+
+              {/* Email Recipients Management */}
+              <div className="border-t pt-8">
+                <EmailRecipientsManager />
+              </div>
             </div>
           </div>
         )}
