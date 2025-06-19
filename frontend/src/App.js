@@ -740,23 +740,18 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    try {
-      const response = await axios.post(`${API}/auth/login`, { email, password });
-      const { access_token, user } = response.data;
-      
-      // Store token and user data
-      localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+    const success = await login(email, password);
+    if (success) {
+      // Get user data from AuthContext to determine role
+      const userData = JSON.parse(localStorage.getItem('user'));
       
       // Auto-redirect based on user role
-      if (user.role === 'admin') {
+      if (userData.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/employee');
       }
-    } catch (error) {
-      console.error('Login failed:', error);
+    } else {
       setError('Invalid email or password. Please try again.');
     }
     setLoading(false);
