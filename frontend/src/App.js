@@ -2591,8 +2591,8 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/login/employee" element={<LoginPage />} />
-            <Route path="/login/admin" element={<LoginPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
             <Route
               path="/employee"
               element={
@@ -2609,6 +2609,9 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Legacy route redirects */}
+            <Route path="/login/employee" element={<Navigate to="/login" replace />} />
+            <Route path="/login/admin" element={<Navigate to="/login" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
