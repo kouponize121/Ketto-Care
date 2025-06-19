@@ -103,6 +103,18 @@ class EmailTemplate(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class EmailRecipient(Base):
+    __tablename__ = "email_recipients"
+    
+    id = Column(Integer, primary_key=True)
+    email = Column(String, unique=True, index=True)
+    name = Column(String, nullable=True)
+    recipient_type = Column(String, default="additional")  # additional, excluded_admin
+    notification_types = Column(String, default="all")  # JSON string: ["ticket_created", "ticket_updated"] or "all"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 class AIConversation(Base):
     __tablename__ = "ai_conversations"
     
