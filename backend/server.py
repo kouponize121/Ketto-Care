@@ -233,42 +233,6 @@ async def get_admin_user(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
-async def get_mock_ai_response(message: str, user_name: str, conversation_context: str = "") -> str:
-    """Provide mock AI responses when OpenAI API is unavailable"""
-    message_lower = message.lower()
-    
-    # Check if this is a follow-up to resignation discussion
-    is_resignation_followup = "resign" in conversation_context.lower() or "quit" in conversation_context.lower()
-    
-    # Resignation flow
-    if any(word in message_lower for word in ['resign', 'quit', 'leave', 'leaving']) or is_resignation_followup:
-        if any(word in message_lower for word in ['want to', 'thinking', 'considering']) and not is_resignation_followup:
-            return f"I understand this is a big decision, {user_name}. To help me better support you, could you share what's driving this decision? Is it related to workload, relationships with colleagues or management, career growth opportunities, or something else?"
-        elif any(word in message_lower for word in ['manager', 'micromanag', 'burnout', 'burnt out', 'stress', 'workload']):
-            return f"That sounds really challenging, {user_name}. Micromanagement and burnout can be frustrating. Let me suggest some approaches that might help improve this situation:\n\n1. Schedule a one-on-one with your manager to discuss communication preferences and expectations\n2. Document your achievements to build trust and demonstrate your capabilities\n3. Request specific projects where you can demonstrate autonomous work\n4. Consider discussing workload distribution and priorities\n5. Explore internal opportunities that might offer a better work environment\n\nWould any of these approaches be helpful for your situation?"
-        else:
-            return f"That sounds challenging, {user_name}. Let me suggest some approaches that might help improve this situation:\n\n1. Schedule a one-on-one with your manager to discuss your concerns\n2. Explore internal opportunities that might better match your interests\n3. Consider discussing workload adjustments with your supervisor\n4. Look into skill development programs to enhance job satisfaction\n\nWould any of these approaches be helpful for your situation?"
-    
-    # Harassment/serious issues
-    elif any(word in message_lower for word in ['harass', 'discriminat', 'abuse', 'threaten']):
-        return f"I'm really sorry to hear that you're experiencing this, {user_name}. This is a serious concern that requires immediate attention. I'm creating a support ticket and notifying our admin team so they can provide proper assistance. You should receive follow-up within 24 hours."
-    
-    # Stress/workload
-    elif any(word in message_lower for word in ['stress', 'overwhelm', 'burnout', 'workload', 'too much work']):
-        return f"I hear that you're feeling overwhelmed, {user_name}. This is more common than you might think, and there are several strategies we can explore:\n\n1. Prioritize your tasks using the urgent/important matrix\n2. Discuss workload distribution with your manager\n3. Consider delegation opportunities\n4. Take regular breaks to maintain productivity\n5. Explore time management tools and techniques\n\nWould you like me to help you think through any of these approaches?"
-    
-    # Manager issues
-    elif any(word in message_lower for word in ['manager', 'supervisor', 'boss']) and any(word in message_lower for word in ['problem', 'issue', 'conflict', 'difficult']):
-        return f"Manager relationships can be challenging, {user_name}. Here are some strategies that often help:\n\n1. Schedule a private conversation to discuss communication preferences\n2. Document your achievements to build trust\n3. Ask for specific feedback on how to improve the working relationship\n4. Consider involving HR for mediation if needed\n\nWould you like help preparing for a conversation with your manager?"
-    
-    # Career/promotion
-    elif any(word in message_lower for word in ['career', 'promotion', 'growth', 'advancement']):
-        return f"Career development is important, {user_name}. Let's explore some options:\n\n1. Schedule a career discussion with your manager\n2. Identify skills you'd like to develop\n3. Look into internal job postings and opportunities\n4. Consider mentorship programs\n5. Explore cross-functional projects\n\nWhat specific aspect of your career would you like to focus on?"
-    
-    # General workplace concerns
-    else:
-        return f"Thank you for reaching out, {user_name}. I'm here to help with workplace concerns. Could you provide a bit more detail about what's on your mind? This will help me offer more targeted support and resources."
-
 async def chat_with_ai(message: str, user_id: str, db: Session) -> dict:
     """Process chat with CareAI and determine if ticket creation is needed"""
     try:
@@ -369,13 +333,20 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
             )
             
             ai_response = response.choices[0].message.content
-            using_mock = False
+            
             
         except Exception as openai_error:
-            logging.warning(f"OpenAI API error: {str(openai_error)}")
-            logging.info("Using mock AI response as fallback")
-            ai_response = await get_mock_ai_response(message, user_name, conversation_history)
-            using_mock = True
+            logging.error(f"OpenAI API error: {str(openai_error)}")
+            # Escalate immediately when AI is unavailable
+            return {
+                "response": "I apologize, but I'm experiencing technical difficulties connecting to our AI system. I'm creating a support ticket to ensure your concern is addressed by our admin team.",
+                "escalate": True,
+                "category": "request",
+                "severity": "medium",
+                "summary": "Technical support needed - AI assistant unavailable",
+                "show_resolution_buttons": False,
+                "conversation_id": None
+            }
         
         # Enhanced escalation logic
         escalate = False
@@ -389,25 +360,7 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         logging.info(f"Escalate: {escalate}")
         logging.info(f"Raw AI response: {ai_response[:200]}...")
         
-        if using_mock:
-            # Mock AI escalation logic
-            critical_keywords = ["harassment", "harass", "discriminat", "abuse", "threat", "unsafe", "sexual"]
-            if any(keyword in message.lower() for keyword in critical_keywords):
-                escalate = True
-                category = "grievance"
-                severity = "critical"
-                summary = f"Serious workplace concern: {message[:80]}..."
-                logging.info(f"Mock AI escalating due to critical keywords: {message}")
-            
-            # Auto-escalate follow-ups indicating unresolved issues
-            unresolved_indicators = ["no", "not really", "still having", "doesn't help", "not resolved", "still struggling", "not working"]
-            if is_follow_up and any(indicator in message.lower() for indicator in unresolved_indicators):
-                escalate = True
-                category = "request"
-                severity = "medium"
-                summary = f"Unresolved workplace concern: {pending_conversation.initial_concern[:60]}..." if pending_conversation else summary
-                logging.info("Mock AI auto-escalating follow-up with unresolved issue")
-        else:
+        # Enhanced escalation logic
             # Check for escalation markers from AI
             response_upper = ai_response.upper()
             if "ESCALATE: TRUE" in response_upper or "ESCALATE:TRUE" in response_upper:
@@ -511,8 +464,12 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         starts_with_question = any(clean_response.lower().strip().startswith(q) for q in question_indicators)
         is_mostly_questions = question_count > 1 or (question_count == 1 and starts_with_question and len(clean_response) < 200)
         
-        # Show buttons if: not escalating, not follow-up, has solutions, not primarily questions
-        should_show_buttons = not escalate and not is_follow_up and has_solutions and not is_mostly_questions
+        # Show buttons ONLY for final solutions (not initial questions or investigations)
+        # Must have multiple solutions AND minimal questions
+        is_final_solution = has_numbered_list and has_solutions and question_count == 0
+        is_comprehensive_advice = has_solutions and len(clean_response) > 300 and question_count <= 1
+        
+        should_show_buttons = not escalate and not is_follow_up and (is_final_solution or is_comprehensive_advice) and not is_mostly_questions
         
         logging.info(f"Resolution buttons logic: escalate={escalate}, is_follow_up={is_follow_up}, has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
         logging.info(f"Response snippet for analysis: {clean_response[:200]}...")

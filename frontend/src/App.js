@@ -1070,6 +1070,7 @@ const AdminDashboard = () => {
 
   const loadData = async () => {
     try {
+      console.log('Loading admin data...');
       const [ticketsRes, usersRes, emailRes, gptRes, templatesRes, conversationsRes] = await Promise.all([
         axios.get(`${API}/admin/tickets`),
         axios.get(`${API}/admin/users`),
@@ -1079,14 +1080,18 @@ const AdminDashboard = () => {
         axios.get(`${API}/admin/ai-conversations`)
       ]);
       
-      setTickets(ticketsRes.data);
-      setUsers(usersRes.data);
-      setEmailConfig(emailRes.data);
-      setGptConfig(gptRes.data);
-      setEmailTemplates(templatesRes.data);
-      setAiConversations(conversationsRes.data);
+      console.log('Tickets loaded:', ticketsRes.data.length);
+      console.log('Users loaded:', usersRes.data.length);
+      
+      setTickets(ticketsRes.data || []);
+      setUsers(usersRes.data || []);
+      setEmailConfig(emailRes.data || {});
+      setGptConfig(gptRes.data || {});
+      setEmailTemplates(templatesRes.data || []);
+      setAiConversations(conversationsRes.data || []);
     } catch (error) {
       console.error('Failed to load admin data:', error);
+      alert('Failed to load admin data. Please refresh the page.');
     }
   };
 
