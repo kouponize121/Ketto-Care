@@ -860,10 +860,16 @@ async def chat_with_careai(chat_request: ChatRequest, current_user: User = Depen
     db.add(ai_message)
     db.commit()
     
+    # Log the AI result for debugging
+    logging.info(f"Chat endpoint - AI result keys: {list(ai_result.keys())}")
+    logging.info(f"Chat endpoint - show_resolution_buttons: {ai_result.get('show_resolution_buttons', 'NOT_FOUND')}")
+    
     return {
         "response": ai_result['response'],
         "ticket_created": ai_result['escalate'],
-        "ticket_id": ticket_id
+        "ticket_id": ticket_id,
+        "show_resolution_buttons": ai_result.get('show_resolution_buttons', False),
+        "conversation_id": ai_result.get('conversation_id')
     }
 
 # Ticket routes
