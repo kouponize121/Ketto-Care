@@ -740,23 +740,32 @@ const Login = () => {
     setLoading(true);
     setError('');
 
+    console.log('Login attempt for:', email);
+    
     const success = await login(email, password);
+    console.log('Login result:', success);
+    
     if (success) {
+      // Get user data from AuthContext to determine role
+      const userData = JSON.parse(localStorage.getItem('user'));
+      console.log('User data from localStorage:', userData);
+      
       // Small delay to ensure AuthContext state is updated
       setTimeout(() => {
-        // Get user data from AuthContext to determine role
-        const userData = JSON.parse(localStorage.getItem('user'));
-        
         // Auto-redirect based on user role
         if (userData && userData.role === 'admin') {
+          console.log('Redirecting to admin dashboard');
           navigate('/admin');
         } else if (userData && userData.role === 'employee') {
+          console.log('Redirecting to employee dashboard');
           navigate('/employee');
         } else {
+          console.log('Unable to determine user role');
           setError('Unable to determine user role. Please try again.');
         }
       }, 100);
     } else {
+      console.log('Login failed');
       setError('Invalid email or password. Please try again.');
     }
     setLoading(false);
