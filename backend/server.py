@@ -602,12 +602,12 @@ async def send_email_notification(ticket: Ticket, user: User, db: Session, notif
         ).all()
         excluded_emails = [recipient.email for recipient in excluded_admin_emails]
         
-        # Set recipients from template
-        to_recipients = template_data["to_recipients"].copy()
+        # Start with empty recipient list (ignore hardcoded template emails)
+        to_recipients = []
         
         # Add ALL admin users to recipient list (except excluded ones)
         for admin_email in admin_emails:
-            if admin_email not in to_recipients and admin_email not in excluded_emails:
+            if admin_email not in excluded_emails:
                 to_recipients.append(admin_email)
         
         # Add additional custom recipients
@@ -618,17 +618,18 @@ async def send_email_notification(ticket: Ticket, user: User, db: Session, notif
                     to_recipients.append(recipient.email)
         
         # Add employee email as CC for transparency (not main recipient)
-        cc_recipients = template_data["cc_recipients"].copy()
+        cc_recipients = []
         if user.email not in cc_recipients and user.email not in to_recipients:
             cc_recipients.append(user.email)
         
         logging.info(f"Email recipients - To: {to_recipients}, CC: {cc_recipients}, Excluded: {excluded_emails}")
+        logging.info(f"Admin emails processed: {admin_emails}")
+        logging.info(f"Additional recipients: {[r.email for r in additional_recipients]}")
         
         msg['To'] = ", ".join(to_recipients)
         
         if cc_recipients:
             msg['Cc'] = ", ".join(cc_recipients)
-            template_data["cc_recipients"] = cc_recipients
         
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
