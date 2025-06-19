@@ -529,26 +529,35 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
-  
-  const userType = window.location.pathname.includes('admin') ? 'admin' : 'employee';
 
   useEffect(() => {
     // Initialize admin user on first load
-    if (userType === 'admin') {
-      axios.post(`${API}/init-admin`).catch(() => {});
-    }
-  }, [userType]);
+    axios.post(`${API}/init-admin`).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const success = await login(email, password);
-    if (success) {
-      navigate(userType === 'admin' ? '/admin' : '/employee');
-    } else {
-      setError('Invalid credentials');
+    try {
+      const response = await axios.post(`${API}/auth/login`, { email, password });
+      const { access_token, user } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(user));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      
+      // Auto-redirect based on user role
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/employee');
+      }
+    } catch (error) {
+      console.error('Login failed:', error);
+      setError('Invalid email or password. Please try again.');
     }
     setLoading(false);
   };
@@ -559,20 +568,18 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <Heart className="h-12 w-12 text-indigo-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900">
-            {userType === 'admin' ? 'Admin Login' : 'Employee Login'}
+            Welcome to Ketto Care
           </h1>
-          <p className="text-gray-600 mt-2">Sign in to access Ketto Care</p>
+          <p className="text-gray-600 mt-2">Sign in to access your dashboard</p>
         </div>
 
-        {userType === 'admin' && (
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <p className="text-sm text-blue-800">
-              <strong>Demo Admin Credentials:</strong><br />
-              Email: admin@ketto.org<br />
-              Password: admin123
-            </p>
+        <div className="bg-blue-50 p-4 rounded-lg mb-6">
+          <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials:</h3>
+          <div className="text-xs text-blue-800 space-y-1">
+            <div><strong>Admin:</strong> admin@ketto.org / admin123</div>
+            <div><strong>Employee:</strong> Create an account or use any test credentials</div>
           </div>
-        )}
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -581,10 +588,11 @@ const LoginPage = () => {
             </label>
             <input
               type="email"
+              required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              required
+              placeholder="Enter your email"
             />
           </div>
 
@@ -594,33 +602,48 @@ const LoginPage = () => {
             </label>
             <input
               type="password"
+              required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              required
+              placeholder="Enter your password"
             />
           </div>
 
           {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+            className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 disabled:opacity-50 transition font-medium"
           >
-            {loading ? 'Signing In...' : 'Sign In'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
-          <Link
-            to="/"
-            className="text-indigo-600 hover:text-indigo-700 text-sm"
+          <p className="text-gray-600 text-sm">
+            Don't have an account?{' '}
+            <button
+              onClick={() => navigate('/register')}
+              className="text-indigo-600 hover:text-indigo-500 font-medium"
+            >
+              Create Employee Account
+            </button>
+          </p>
+        </div>
+
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => navigate('/')}
+            className="text-gray-500 hover:text-gray-700 text-sm"
           >
             ← Back to Home
-          </Link>
+          </button>
         </div>
       </div>
     </div>
