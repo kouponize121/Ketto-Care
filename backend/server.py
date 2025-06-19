@@ -472,18 +472,16 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
         starts_with_question = any(clean_response.lower().strip().startswith(q) for q in question_indicators)
         is_mostly_questions = question_count > 1 or (question_count == 1 and starts_with_question and len(clean_response) < 200)
         
-        # Show buttons ONLY for final solutions (not initial questions or investigations)
-        # Must have multiple solutions AND minimal questions AND be comprehensive
-        is_final_solution = has_numbered_list and has_solutions and question_count == 0 and len(clean_response) > 400
-        is_comprehensive_advice = has_solutions and len(clean_response) > 500 and question_count == 0 and has_numbered_list
+        # Show buttons ONLY for solution-providing responses (not investigation questions)
+        # Must have solutions AND be primarily solution-focused (not mostly questions)
+        is_solution_response = has_solutions and not is_mostly_questions
+        has_actionable_content = has_numbered_list or (has_solutions and len(clean_response) > 200)
         
-        # Additional check: the user message should indicate they've already tried something or need specific help
-        user_seeking_final_help = any(phrase in message.lower() for phrase in [
-            "i've tried", "i have tried", "nothing changes", "need specific", "need help with", 
-            "what should i do", "how do i handle", "need strategies", "need advice"
-        ])
+        # Don't show buttons for obvious investigation questions
+        investigation_phrases = ["could you", "can you tell me", "please share", "more details", "what specifically"]
+        is_investigation = any(phrase in clean_response.lower() for phrase in investigation_phrases)
         
-        should_show_buttons = not escalate and not is_follow_up and (is_final_solution or is_comprehensive_advice) and not is_mostly_questions and user_seeking_final_help
+        should_show_buttons = not escalate and not is_follow_up and is_solution_response and has_actionable_content and not is_investigation
         
         logging.info(f"Resolution buttons logic: escalate={escalate}, is_follow_up={is_follow_up}, has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
         logging.info(f"Response snippet for analysis: {clean_response[:200]}...")
