@@ -2741,6 +2741,9 @@ const AdminDashboard = () => {
 const ProtectedRoute = ({ children, adminOnly = false }) => {
   const { user, loading } = useAuth();
 
+  // Debug logging
+  console.log('ProtectedRoute - Loading:', loading, 'User:', user, 'AdminOnly:', adminOnly);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -2753,13 +2756,16 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!user) {
+    console.log('ProtectedRoute - No user found, redirecting to home');
     return <Navigate to="/" replace />;
   }
 
   if (adminOnly && user.role !== 'admin') {
+    console.log('ProtectedRoute - Admin required but user is not admin, redirecting to employee');
     return <Navigate to="/employee" replace />;
   }
 
+  console.log('ProtectedRoute - Access granted');
   return children;
 };
 
