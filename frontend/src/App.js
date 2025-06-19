@@ -1047,6 +1047,191 @@ const EmployeeDashboard = () => {
   );
 };
 
+// Email Recipients Manager Component
+const EmailRecipientsManager = () => {
+  const [emailRecipients, setEmailRecipients] = useState({
+    additional_recipients: [],
+    excluded_admin_emails: []
+  });
+  const [additionalEmails, setAdditionalEmails] = useState('');
+  const [excludedEmails, setExcludedEmails] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    loadEmailRecipients();
+  }, []);
+
+  const loadEmailRecipients = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/email-recipients`);
+      setEmailRecipients(response.data);
+      
+      // Convert arrays to comma-separated strings for display
+      const additionalEmails = response.data.additional_recipients.map(r => r.email).join(', ');
+      const excludedEmails = response.data.excluded_admin_emails.map(r => r.email).join(', ');
+      
+      setAdditionalEmails(additionalEmails);
+      setExcludedEmails(excludedEmails);
+    } catch (error) {
+      console.error('Failed to load email recipients:', error);
+    }
+  };
+
+  const saveEmailRecipients = async () => {
+    setLoading(true);
+    try {
+      // Convert comma-separated strings to arrays
+      const additionalArray = additionalEmails.split(',').map(email => email.trim()).filter(email => email);
+      const excludedArray = excludedEmails.split(',').map(email => email.trim()).filter(email => email);
+
+      await axios.post(`${API}/admin/email-recipients`, {
+        additional_recipients: additionalArray,
+        excluded_admin_emails: excludedArray
+      });
+
+      alert('Email recipients updated successfully!');
+      loadEmailRecipients();
+    } catch (error) {
+      console.error('Failed to save email recipients:', error);
+      alert('Failed to save email recipients: ' + (error.response?.data?.detail || 'Unknown error'));
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h3 className="text-md font-semibold text-gray-900 mb-4">Email Recipients Management</h3>
+      
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h4 className="text-sm font-medium text-blue-800 mb-2">How Email Notifications Work:</h4>
+        <ul className="text-sm text-blue-700 space-y-1">
+          <li>• <strong>Automatic:</strong> All admin users receive ticket notifications</li>
+          <li>• <strong>Additional Recipients:</strong> Extra emails that will also receive notifications</li>
+          <li>• <strong>Excluded Admins:</strong> Admin users who should NOT receive notifications</li>
+          <li>• <strong>Employee:</strong> The employee who created the ticket is automatically CC'd</li>
+        </ul>
+      </div>
+
+      <div className="space-y-6">
+        {/* Additional Recipients */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Additional Email Recipients
+          </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Add extra email addresses that should receive ticket notifications (e.g., external consultants, managers). 
+            Separate multiple emails with commas.
+          </p>
+          <textarea
+            value={additionalEmails}
+            onChange={(e) => setAdditionalEmails(e.target.value)}
+            placeholder="hr.consultant@external.com, manager@company.com, support@vendor.com"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            rows="3"
+          />
+          {emailRecipients.additional_recipients.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-600">Current additional recipients:</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {emailRecipients.additional_recipients.map((recipient, index) => (
+                  <span key={index} className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                    {recipient.email}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Excluded Admin Emails */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Excluded Admin Users
+          </label>
+          <p className="text-xs text-gray-500 mb-2">
+            Specify admin users who should NOT receive email notifications. 
+            Separate multiple emails with commas.
+          </p>
+          <textarea
+            value={excludedEmails}
+            onChange={(e) => setExcludedEmails(e.target.value)}
+            placeholder="admin2@company.com, temp.admin@company.com"
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+            rows="2"
+          />
+          {emailRecipients.excluded_admin_emails.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-600">Currently excluded admin emails:</p>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {emailRecipients.excluded_admin_emails.map((recipient, index) => (
+                  <span key={index} className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                    {recipient.email}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={saveEmailRecipients}
+            disabled={loading}
+            className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
+          >
+            {loading ? 'Saving...' : 'Save Email Recipients'}
+          </button>
+          
+          <button
+            onClick={loadEmailRecipients}
+            className="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 transition"
+          >
+            Reset Changes
+          </button>
+        </div>
+
+        {/* Current Admin Users Display */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-gray-800 mb-2">Current Admin Users (Auto-included unless excluded):</h4>
+          <AdminUsersList />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Component to display current admin users
+const AdminUsersList = () => {
+  const [adminUsers, setAdminUsers] = useState([]);
+
+  useEffect(() => {
+    loadAdminUsers();
+  }, []);
+
+  const loadAdminUsers = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/users`);
+      const admins = response.data.filter(user => user.role === 'admin');
+      setAdminUsers(admins);
+    } catch (error) {
+      console.error('Failed to load admin users:', error);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {adminUsers.map((admin, index) => (
+        <span key={index} className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs">
+          {admin.name} ({admin.email})
+        </span>
+      ))}
+      {adminUsers.length === 0 && (
+        <span className="text-gray-500 text-xs">No admin users found</span>
+      )}
+    </div>
+  );
+};
+
 // Admin Dashboard
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
