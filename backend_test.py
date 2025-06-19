@@ -888,10 +888,9 @@ class KettoCareAPITester:
             "shows_buttons": show_resolution_buttons
         }
 
-def main():
-    # Get the backend URL from the frontend .env file
+def test_resolution_buttons_fix():
+    """Test the resolution buttons fix with specific scenarios"""
     backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
-    
     print(f"Testing Ketto Care API at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -904,60 +903,169 @@ def main():
     
     # Test employee registration and login
     reg_success, employee_data = tester.test_employee_registration()
-    if reg_success:
-        # Test employee login
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return 1
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return 1
+    else:
         login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return 1
+    
+    print("\n===== TESTING RESOLUTION BUTTONS FIX =====")
+    
+    # Test scenario 1: Resignation due to manager
+    print("\n\n🔍 SCENARIO 1: Resignation due to manager")
+    message = "I'm thinking about resigning because of my manager"
+    print(f"Sending message: '{message}'")
+    success, response = tester.run_test(
+        "Resignation scenario",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": message, "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        conversation_id = response.get('conversation_id')
         
-        if login_success:
-            print("\n===== TESTING CAREAI CHAT =====")
-            
-            # Test chat with CareAI to create a ticket
-            print("\nTesting chat with CareAI to create a ticket...")
-            chat_success, chat_response = tester.test_chat_with_careai("I'm being harassed by my manager")
-            
-            # Get tickets to see what was created
-            tickets_success, tickets = tester.test_get_tickets()
-            if tickets_success and tickets and len(tickets) > 0:
-                # Save a ticket ID for later tests
-                tester.test_ticket_id = tickets[0]['id']
-                print(f"Saved ticket ID for testing: {tester.test_ticket_id}")
-            
-            # If we have admin access, test the new features
-            if admin_login_success:
-                print("\n===== TESTING NEW FEATURES =====")
-                
-                # Test 1: Admin Notes in Tickets
-                if tester.test_ticket_id:
-                    print("\n1. Testing Admin Notes in Tickets...")
-                    admin_notes_success = tester.test_admin_update_ticket_with_notes(tester.test_ticket_id)
-                else:
-                    print("❌ Cannot test admin notes: No ticket available")
-                    admin_notes_success = False
-                
-                # Test 2: CSV Bulk User Upload
-                print("\n2. Testing CSV Bulk User Upload...")
-                csv_upload_success = tester.test_csv_bulk_user_upload()
-                
-                # Test 3: Email Template Configuration
-                print("\n3. Testing Email Template Configuration...")
-                email_template_success = tester.test_email_templates()
-                
-                # Get admin tickets to verify
-                admin_tickets_success, admin_tickets = tester.test_admin_get_tickets()
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        # Check if the response contains solutions
+        solution_indicators = [
+            "schedule", "document", "discuss", "explore", "approach", "strategy",
+            "suggest", "recommend", "option", "step", "consider", "try"
+        ]
+        has_solutions = any(word in ai_response.lower() for word in solution_indicators)
+        has_numbered_list = '1.' in ai_response and '2.' in ai_response
+        
+        print(f"Response has solutions: {has_solutions}")
+        print(f"Response has numbered list: {has_numbered_list}")
+        
+        # Test resolution buttons if they should be shown
+        if show_resolution_buttons and conversation_id:
+            print("\nTesting 'This helps' button...")
+            tester.test_resolution_endpoint(conversation_id, 'helpful')
+        else:
+            print("❌ Resolution buttons not shown for resignation scenario")
+    
+    # Test scenario 2: Stress about workload
+    print("\n\n🔍 SCENARIO 2: Stress about workload")
+    message = "I'm feeling very stressed about my workload"
+    print(f"Sending message: '{message}'")
+    success, response = tester.run_test(
+        "Stress scenario",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": message, "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        conversation_id = response.get('conversation_id')
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        # Check if the response contains solutions
+        solution_indicators = [
+            "prioritize", "discuss", "delegate", "break", "management",
+            "suggest", "recommend", "option", "step", "consider", "try"
+        ]
+        has_solutions = any(word in ai_response.lower() for word in solution_indicators)
+        has_numbered_list = '1.' in ai_response and '2.' in ai_response
+        
+        print(f"Response has solutions: {has_solutions}")
+        print(f"Response has numbered list: {has_numbered_list}")
+        
+        # Test resolution buttons if they should be shown
+        if show_resolution_buttons and conversation_id:
+            print("\nTesting 'Still need help' button...")
+            success, res = tester.test_resolution_endpoint(conversation_id, 'need_help')
+            if success and res.get('ticket_created'):
+                tester.test_ticket_id = res.get('ticket_id')
+        else:
+            print("❌ Resolution buttons not shown for stress scenario")
+    
+    # Test scenario 3: Problems with manager
+    print("\n\n🔍 SCENARIO 3: Problems with manager")
+    message = "I'm having problems with my manager, they micromanage me"
+    print(f"Sending message: '{message}'")
+    success, response = tester.run_test(
+        "Manager problems scenario",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": message, "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        conversation_id = response.get('conversation_id')
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        # Check if the response contains solutions
+        solution_indicators = [
+            "conversation", "discuss", "document", "schedule", "approach",
+            "suggest", "recommend", "option", "step", "consider", "try"
+        ]
+        has_solutions = any(word in ai_response.lower() for word in solution_indicators)
+        has_numbered_list = '1.' in ai_response and '2.' in ai_response
+        
+        print(f"Response has solutions: {has_solutions}")
+        print(f"Response has numbered list: {has_numbered_list}")
+        
+        # Test resolution buttons if they should be shown
+        if show_resolution_buttons and conversation_id:
+            print("\nTesting 'This helps' button...")
+            tester.test_resolution_endpoint(conversation_id, 'helpful')
+        else:
+            print("❌ Resolution buttons not shown for manager problems scenario")
+    
+    # Check tickets created as admin
+    if admin_login_success and tester.test_ticket_id:
+        print("\n\n🔍 Checking tickets created as admin")
+        admin_tickets_success, admin_tickets = tester.test_admin_get_tickets()
+        if admin_tickets_success:
+            # Find the ticket created by "Still need help"
+            ticket = next((t for t in admin_tickets if t['id'] == tester.test_ticket_id), None)
+            if ticket:
+                print(f"✅ Found ticket created by 'Still need help' button: {ticket['id']}")
+                print(f"Ticket summary: {ticket['summary']}")
+                print(f"Ticket status: {ticket['status']}")
+            else:
+                print(f"❌ Could not find ticket with ID: {tester.test_ticket_id}")
     
     # Print test results
     print("\n" + "="*50)
     print(f"Test Results: {tester.tests_passed}/{tester.tests_run} tests passed")
     print("="*50)
     
-    # Summary of findings
-    if admin_login_success and reg_success and login_success:
-        print("\nSummary of New Features Testing:")
-        print("1. Admin Notes in Tickets: " + ("✅ Working" if 'admin_notes_success' in locals() and admin_notes_success else "❌ Issue detected"))
-        print("2. CSV Bulk User Upload: " + ("✅ Working" if 'csv_upload_success' in locals() and csv_upload_success else "❌ Issue detected"))
-        print("3. Email Template Configuration: " + ("✅ Working" if 'email_template_success' in locals() and email_template_success else "❌ Issue detected"))
-    
     return 0 if tester.tests_passed == tester.tests_run else 1
+
+def main():
+    return test_resolution_buttons_fix()
 
 if __name__ == "__main__":
     main()
