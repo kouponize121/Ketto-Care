@@ -377,16 +377,17 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
             ai_response = await get_mock_ai_response(message, user_name, conversation_history)
             using_mock = True
         
-        # Log for debugging
-        logging.info(f"User message: {message}")
-        logging.info(f"Is follow-up: {is_follow_up}")
-        logging.info(f"Raw AI response: {ai_response}")
-        
         # Enhanced escalation logic
         escalate = False
         category = "request"
         severity = "medium" 
         summary = message[:100] + "..." if len(message) > 100 else message
+        
+        # Log for debugging
+        logging.info(f"User message: {message}")
+        logging.info(f"Is follow-up: {is_follow_up}")
+        logging.info(f"Escalate: {escalate}")
+        logging.info(f"Raw AI response: {ai_response[:200]}...")
         
         if using_mock:
             # Mock AI escalation logic
