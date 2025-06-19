@@ -1200,9 +1200,11 @@ const EmailRecipientsManager = () => {
   );
 };
 
-// Component to display current admin users
+// Component to display and manage current admin users
 const AdminUsersList = () => {
   const [adminUsers, setAdminUsers] = useState([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState(null);
 
   useEffect(() => {
     loadAdminUsers();
@@ -1218,16 +1220,252 @@ const AdminUsersList = () => {
     }
   };
 
+  const deleteAdminUser = async (userId) => {
+    if (!confirm('Are you sure you want to delete this admin user?')) return;
+    
+    try {
+      await axios.delete(`${API}/admin/users/${userId}`);
+      alert('Admin user deleted successfully!');
+      loadAdminUsers();
+    } catch (error) {
+      alert('Failed to delete admin user: ' + (error.response?.data?.detail || 'Unknown error'));
+    }
+  };
+
+  const handleEditAdmin = (admin) => {
+    setEditingAdmin(admin);
+    setShowAddModal(true);
+  };
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {adminUsers.map((admin, index) => (
-        <span key={index} className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs">
-          {admin.name} ({admin.email})
-        </span>
-      ))}
-      {adminUsers.length === 0 && (
-        <span className="text-gray-500 text-xs">No admin users found</span>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-medium text-gray-800">Current Admin Users (Auto-included unless excluded):</h4>
+        <button
+          onClick={() => {
+            setEditingAdmin(null);
+            setShowAddModal(true);
+          }}
+          className="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700 transition"
+        >
+          + Add Admin User
+        </button>
+      </div>
+
+      {adminUsers.length === 0 ? (
+        <div className="text-gray-500 text-xs">No admin users found</div>
+      ) : (
+        <div className="space-y-2">
+          {adminUsers.map((admin) => (
+            <div key={admin.id} className="flex items-center justify-between bg-white border rounded-lg p-3">
+              <div className="flex-1">
+                <div className="flex items-center space-x-3">
+                  <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-xs font-medium">
+                    ADMIN
+                  </span>
+                  <div>
+                    <div className="text-sm font-medium text-gray-900">{admin.name}</div>
+                    <div className="text-xs text-gray-500">{admin.email}</div>
+                    {admin.designation && (
+                      <div className="text-xs text-gray-400">{admin.designation}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleEditAdmin(admin)}
+                  className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs hover:bg-yellow-200 transition"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => deleteAdminUser(admin.id)}
+                  className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs hover:bg-red-200 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
+
+      {/* Add/Edit Admin Modal */}
+      {showAddModal && (
+        <AdminUserModal
+          admin={editingAdmin}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingAdmin(null);
+          }}
+          onSave={() => {
+            setShowAddModal(false);
+            setEditingAdmin(null);
+            loadAdminUsers();
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+// Admin User Add/Edit Modal
+const AdminUserModal = ({ admin, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: admin?.name || '',
+    email: admin?.email || '',
+    designation: admin?.designation || '',
+    bu: admin?.bu || '',
+    reporting_manager: admin?.reporting_manager || '',
+    password: ''
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const submitData = {
+        ...formData,
+        role: 'admin'
+      };
+
+      // Remove password if editing and password is empty
+      if (admin && !formData.password) {
+        delete submitData.password;
+      }
+
+      if (admin) {
+        // Edit existing admin
+        await axios.put(`${API}/admin/users/${admin.id}`, submitData);
+        alert('Admin user updated successfully!');
+      } else {
+        // Create new admin
+        if (!formData.password) {
+          alert('Password is required for new admin users');
+          setLoading(false);
+          return;
+        }
+        await axios.post(`${API}/admin/users`, submitData);
+        alert('Admin user created successfully!');
+      }
+      
+      onSave();
+    } catch (error) {
+      alert('Failed to save admin user: ' + (error.response?.data?.detail || 'Unknown error'));
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">
+            {admin ? 'Edit Admin User' : 'Add New Admin User'}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+              placeholder="John Doe"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+              placeholder="john.doe@company.com"
+              disabled={admin ? true : false} // Email cannot be changed for existing users
+            />
+            {admin && (
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed for existing users</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Designation
+            </label>
+            <input
+              type="text"
+              value={formData.designation}
+              onChange={(e) => setFormData({...formData, designation: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+              placeholder="HR Manager, IT Admin, etc."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Business Unit
+            </label>
+            <input
+              type="text"
+              value={formData.bu}
+              onChange={(e) => setFormData({...formData, bu: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+              placeholder="HR, IT, Operations, etc."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Password {admin ? '(leave blank to keep current)' : '*'}
+            </label>
+            <input
+              type="password"
+              required={!admin}
+              value={formData.password}
+              onChange={(e) => setFormData({...formData, password: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+              placeholder={admin ? "Leave blank to keep current password" : "Enter password"}
+            />
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-600 border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : (admin ? 'Update Admin' : 'Create Admin')}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
