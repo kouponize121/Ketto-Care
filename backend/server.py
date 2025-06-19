@@ -487,19 +487,34 @@ Be decisive: investigate briefly, then provide solutions. Let the buttons handle
                                       if not line.upper().strip().startswith(marker)])
         
         # Determine if we should show resolution buttons
-        if using_mock:
-            # For mock responses, show buttons when providing solutions (not initial questions)
-            solution_keywords = ["suggest", "approach", "strategy", "option", "would", "help", "consider", "here are", "try", "recommendation"]
-            should_show_buttons = not escalate and not is_follow_up and any(keyword in ai_response.lower() for keyword in solution_keywords)
-        else:
-            # For real AI, detect if solutions are provided (not just questions)
-            solution_indicators = ["here are", "strategies", "approaches", "suggestions", "try", "consider", "recommend", "solution", "steps", "ways to"]
-            question_indicators = ["what", "how", "when", "why", "could you", "can you", "would you", "?"]
-            
-            has_solutions = any(indicator in ai_response.lower() for indicator in solution_indicators)
-            is_mostly_questions = ai_response.count("?") > 1 or any(q in ai_response.lower()[:100] for q in question_indicators[:4])
-            
-            should_show_buttons = not escalate and not is_follow_up and has_solutions and not is_mostly_questions
+        # Enhanced logic to detect solution-providing responses
+        solution_indicators = [
+            "here are", "strategies", "approaches", "suggestions", "try", "consider", 
+            "recommend", "solution", "steps", "ways to", "you can", "you might",
+            "i suggest", "approach", "option", "would help", "could help",
+            "proven strategies", "effective way", "helpful", "improve", 
+            "schedule a", "document", "discuss", "explore", "look into"
+        ]
+        
+        # More comprehensive question detection
+        question_indicators = ["what", "how", "when", "why", "could you", "can you", "would you"]
+        
+        # Count numbered lists as solutions (AI often provides numbered advice)
+        has_numbered_list = bool(len([line for line in clean_response.split('\n') if line.strip().startswith(('1.', '2.', '3.', '4.', '5.'))]) >= 2)
+        
+        # Check for solution content
+        has_solutions = any(indicator in clean_response.lower() for indicator in solution_indicators) or has_numbered_list
+        
+        # Check if it's primarily asking questions
+        question_count = clean_response.count("?")
+        starts_with_question = any(clean_response.lower().strip().startswith(q) for q in question_indicators)
+        is_mostly_questions = question_count > 1 or (question_count == 1 and starts_with_question and len(clean_response) < 200)
+        
+        # Show buttons if: not escalating, not follow-up, has solutions, not primarily questions
+        should_show_buttons = not escalate and not is_follow_up and has_solutions and not is_mostly_questions
+        
+        logging.info(f"Resolution buttons logic: has_solutions={has_solutions}, is_mostly_questions={is_mostly_questions}, has_numbered_list={has_numbered_list}, should_show_buttons={should_show_buttons}")
+        logging.info(f"Response snippet for analysis: {clean_response[:200]}...")
         
         return {
             "response": clean_response.strip(),
