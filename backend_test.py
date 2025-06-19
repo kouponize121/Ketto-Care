@@ -1064,8 +1064,311 @@ def test_resolution_buttons_fix():
     
     return 0 if tester.tests_passed == tester.tests_run else 1
 
+def comprehensive_test():
+    """Run comprehensive tests of all Ketto Care functionality"""
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    print(f"Testing Ketto Care API at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    print("\n===== TESTING AUTHENTICATION =====")
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test admin initialization and login
+    tester.test_init_admin()
+    admin_login_success = tester.test_admin_login()
+    if not admin_login_success:
+        print("❌ Admin login failed, stopping tests")
+        return 1
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if not reg_success:
+        print("❌ Employee registration failed, trying to login with existing employee")
+        login_success = tester.test_employee_login("employee@example.com", "password123")
+        if not login_success:
+            print("❌ Could not login with existing employee, creating a new one")
+            reg_success, employee_data = tester.test_employee_registration()
+            if not reg_success:
+                print("❌ Failed to create employee account, stopping tests")
+                return 1
+            login_success = tester.test_employee_login(employee_data["email"])
+            if not login_success:
+                print("❌ Failed to login with new employee account, stopping tests")
+                return 1
+    else:
+        login_success = tester.test_employee_login(employee_data["email"])
+        if not login_success:
+            print("❌ Failed to login with new employee account, stopping tests")
+            return 1
+    
+    print("\n===== TESTING EMPLOYEE CHAT INTERFACE =====")
+    
+    # Test regular workplace concerns
+    print("\n🔍 Testing regular workplace concern")
+    success, response = tester.run_test(
+        "Regular workplace concern",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I'm feeling stressed about my workload", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        show_resolution_buttons = response.get('show_resolution_buttons', False)
+        conversation_id = response.get('conversation_id')
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Show Resolution Buttons: {show_resolution_buttons}")
+        
+        if show_resolution_buttons:
+            print("✅ Resolution buttons appear for regular workplace concern")
+        else:
+            print("❌ Resolution buttons not shown for regular workplace concern")
+            
+        if conversation_id and show_resolution_buttons:
+            # Test "This helps" button
+            print("\nTesting 'This helps' button...")
+            tester.test_resolution_endpoint(conversation_id, 'helpful')
+    
+    # Test serious issue (harassment)
+    print("\n🔍 Testing serious issue (harassment)")
+    success, response = tester.run_test(
+        "Harassment issue",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I'm being harassed by my colleague", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success:
+        ai_response = response.get('response', '')
+        ticket_created = response.get('ticket_created', False)
+        ticket_id = response.get('ticket_id')
+        
+        print(f"AI Response: {ai_response[:150]}...")
+        print(f"Ticket Created: {ticket_created}")
+        
+        if ticket_created and ticket_id:
+            print(f"✅ Serious issue automatically escalated to ticket: {ticket_id}")
+            tester.test_ticket_id = ticket_id
+        else:
+            print("❌ Serious issue not automatically escalated")
+    
+    # Test resolution buttons with "Still need help"
+    print("\n🔍 Testing 'Still need help' resolution button")
+    success, response = tester.run_test(
+        "Career growth concern",
+        "POST",
+        "api/chat",
+        200,
+        data={"message": "I'm concerned about my career growth", "user_id": tester.employee_id},
+        token=tester.token
+    )
+    
+    if success and response.get('show_resolution_buttons') and response.get('conversation_id'):
+        conversation_id = response.get('conversation_id')
+        print("\nTesting 'Still need help' button...")
+        success, res = tester.test_resolution_endpoint(conversation_id, 'need_help')
+        if success and res.get('ticket_created'):
+            print(f"✅ 'Still need help' button creates ticket: {res.get('ticket_id')}")
+            if not tester.test_ticket_id:  # Save a ticket ID for later tests if we don't have one
+                tester.test_ticket_id = res.get('ticket_id')
+        else:
+            print("❌ 'Still need help' button did not create ticket")
+    
+    # Test chat history persistence
+    print("\n🔍 Testing chat history persistence")
+    success, history = tester.run_test(
+        "Get Chat History",
+        "GET",
+        f"api/chat/history/{tester.employee_id}",
+        200,
+        token=tester.token
+    )
+    
+    if success:
+        print(f"✅ Retrieved {len(history)} chat messages")
+        if len(history) > 0:
+            print("✅ Chat history is being persisted")
+        else:
+            print("❌ No chat history found")
+    
+    print("\n===== TESTING ADMIN DASHBOARD =====")
+    
+    # Test ticket management
+    print("\n🔍 Testing admin ticket management")
+    success, tickets = tester.test_admin_get_tickets()
+    if success:
+        print(f"✅ Admin retrieved {len(tickets)} tickets")
+        
+        if tester.test_ticket_id:
+            print("\n🔍 Testing ticket status update")
+            update_success = tester.test_admin_update_ticket_with_notes(tester.test_ticket_id)
+            if update_success:
+                print("✅ Admin successfully updated ticket status")
+            else:
+                print("❌ Failed to update ticket status")
+    
+    # Test user management
+    print("\n🔍 Testing admin user management")
+    success, users = tester.test_admin_get_users()
+    if success:
+        print(f"✅ Admin retrieved {len(users)} users")
+        
+        print("\n🔍 Testing user creation")
+        create_success, user_data = tester.test_admin_create_user()
+        if create_success and user_data:
+            print("✅ Admin successfully created user")
+            
+            # Get updated user list to find the new user
+            success, updated_users = tester.test_admin_get_users()
+            if success:
+                new_user = next((u for u in updated_users if u['email'] == user_data['email']), None)
+                if new_user:
+                    user_id = new_user['id']
+                    
+                    print("\n🔍 Testing user update")
+                    update_success, update_data = tester.test_admin_update_user(user_id)
+                    if update_success:
+                        print("✅ Admin successfully updated user")
+                    else:
+                        print("❌ Failed to update user")
+                    
+                    print("\n🔍 Testing user deletion")
+                    delete_success = tester.test_admin_delete_user(user_id)
+                    if delete_success:
+                        print("✅ Admin successfully deleted user")
+                    else:
+                        print("❌ Failed to delete user")
+    
+    # Test CSV user upload
+    print("\n🔍 Testing CSV user upload")
+    csv_success = tester.test_csv_bulk_user_upload()
+    if csv_success:
+        print("✅ Admin successfully uploaded users via CSV")
+    else:
+        print("❌ Failed to upload users via CSV")
+    
+    # Test AI conversations tracking
+    print("\n🔍 Testing AI conversations tracking")
+    success, conversations = tester.run_test(
+        "Get AI Conversations",
+        "GET",
+        "api/admin/ai-conversations",
+        200,
+        token=tester.admin_token
+    )
+    
+    if success:
+        print(f"✅ Admin retrieved {len(conversations)} AI conversations")
+        
+        if len(conversations) > 0:
+            conversation_id = conversations[0]['id']
+            print("\n🔍 Testing marking conversation as reviewed")
+            review_success, _ = tester.run_test(
+                "Mark Conversation Reviewed",
+                "PUT",
+                f"api/admin/ai-conversations/{conversation_id}",
+                200,
+                data={"admin_reviewed": True},
+                token=tester.admin_token
+            )
+            
+            if review_success:
+                print("✅ Admin successfully marked conversation as reviewed")
+            else:
+                print("❌ Failed to mark conversation as reviewed")
+    
+    # Test email configuration
+    print("\n🔍 Testing email configuration")
+    email_config = {
+        "smtp_server": "smtp.example.com",
+        "smtp_port": 587,
+        "smtp_username": "test@example.com",
+        "smtp_password": "password123"
+    }
+    
+    success, _ = tester.run_test(
+        "Save Email Config",
+        "POST",
+        "api/admin/email-config",
+        200,
+        data=email_config,
+        token=tester.admin_token
+    )
+    
+    if success:
+        print("✅ Admin successfully saved email configuration")
+        
+        success, config = tester.run_test(
+            "Get Email Config",
+            "GET",
+            "api/admin/email-config",
+            200,
+            token=tester.admin_token
+        )
+        
+        if success and config:
+            print("✅ Admin successfully retrieved email configuration")
+        else:
+            print("❌ Failed to retrieve email configuration")
+    else:
+        print("❌ Failed to save email configuration")
+    
+    # Test GPT configuration
+    print("\n🔍 Testing GPT configuration")
+    gpt_config = {
+        "api_key": "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"
+    }
+    
+    success, _ = tester.run_test(
+        "Save GPT Config",
+        "POST",
+        "api/admin/gpt-config",
+        200,
+        data=gpt_config,
+        token=tester.admin_token
+    )
+    
+    if success:
+        print("✅ Admin successfully saved GPT configuration")
+        
+        success, config = tester.run_test(
+            "Get GPT Config",
+            "GET",
+            "api/admin/gpt-config",
+            200,
+            token=tester.admin_token
+        )
+        
+        if success and config:
+            print("✅ Admin successfully retrieved GPT configuration")
+        else:
+            print("❌ Failed to retrieve GPT configuration")
+    else:
+        print("❌ Failed to save GPT configuration")
+    
+    # Test email templates
+    print("\n🔍 Testing email templates")
+    template_success = tester.test_email_templates()
+    if template_success:
+        print("✅ Admin successfully managed email templates")
+    else:
+        print("❌ Failed to manage email templates")
+    
+    # Print test results
+    print("\n" + "="*50)
+    print(f"Test Results: {tester.tests_passed}/{tester.tests_run} tests passed")
+    print("="*50)
+    
+    return 0 if tester.tests_passed == tester.tests_run else 1
+
 def main():
-    return test_resolution_buttons_fix()
+    return comprehensive_test()
 
 if __name__ == "__main__":
     main()
