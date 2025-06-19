@@ -341,16 +341,10 @@ const LandingPage = () => {
             </div>
             <div className="space-x-4">
               <button
-                onClick={() => navigate('/login/employee')}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+                onClick={() => navigate('/login')}
+                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition font-medium"
               >
-                Employee Login
-              </button>
-              <button
-                onClick={() => navigate('/login/admin')}
-                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition"
-              >
-                Admin Login
+                Login
               </button>
             </div>
           </div>
