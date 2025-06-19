@@ -590,20 +590,39 @@ async def send_email_notification(ticket: Ticket, user: User, db: Session, notif
         admin_users = db.query(User).filter(User.role == "admin").all()
         admin_emails = [admin.email for admin in admin_users]
         
+        # Get custom email recipients configuration
+        additional_recipients = db.query(EmailRecipient).filter(
+            EmailRecipient.recipient_type == "additional",
+            EmailRecipient.is_active == True
+        ).all()
+        
+        excluded_admin_emails = db.query(EmailRecipient).filter(
+            EmailRecipient.recipient_type == "excluded_admin",
+            EmailRecipient.is_active == True
+        ).all()
+        excluded_emails = [recipient.email for recipient in excluded_admin_emails]
+        
         # Set recipients from template
         to_recipients = template_data["to_recipients"].copy()
         
-        # Automatically add ALL admin users to recipient list
+        # Add ALL admin users to recipient list (except excluded ones)
         for admin_email in admin_emails:
-            if admin_email not in to_recipients:
+            if admin_email not in to_recipients and admin_email not in excluded_emails:
                 to_recipients.append(admin_email)
+        
+        # Add additional custom recipients
+        for recipient in additional_recipients:
+            # Check if notification type matches (if specific types are configured)
+            if recipient.notification_types == "all" or notification_type in recipient.notification_types:
+                if recipient.email not in to_recipients:
+                    to_recipients.append(recipient.email)
         
         # Add employee email as CC for transparency (not main recipient)
         cc_recipients = template_data["cc_recipients"].copy()
         if user.email not in cc_recipients and user.email not in to_recipients:
             cc_recipients.append(user.email)
         
-        logging.info(f"Email recipients - To: {to_recipients}, CC: {cc_recipients}")
+        logging.info(f"Email recipients - To: {to_recipients}, CC: {cc_recipients}, Excluded: {excluded_emails}")
         
         msg['To'] = ", ".join(to_recipients)
         
