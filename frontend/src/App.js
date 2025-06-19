@@ -773,14 +773,6 @@ const Login = () => {
           <p className="text-gray-600 mt-2">Sign in to access your dashboard</p>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-lg mb-6">
-          <h3 className="text-sm font-medium text-blue-900 mb-2">Demo Credentials:</h3>
-          <div className="text-xs text-blue-800 space-y-1">
-            <div><strong>Admin:</strong> admin@ketto.org / admin123</div>
-            <div><strong>Employee:</strong> Create an account or use any test credentials</div>
-          </div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
