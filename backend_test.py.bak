@@ -1,0 +1,493 @@
+import requests
+import json
+import time
+from datetime import datetime
+
+class KettoCareAPITester:
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self.token = None
+        self.tests_run = 0
+        self.tests_passed = 0
+        self.admin_token = None
+        self.employee_token = None
+        self.employee_id = None
+
+    def run_test(self, name, method, endpoint, expected_status, data=None, token=None, admin=False):
+        """Run a single API test"""
+        url = f"{self.base_url}/{endpoint}"
+        headers = {'Content-Type': 'application/json'}
+        
+        if token:
+            headers['Authorization'] = f'Bearer {token}'
+        elif admin and self.admin_token:
+            headers['Authorization'] = f'Bearer {self.admin_token}'
+        elif self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
+
+        self.tests_run += 1
+        print(f"\n🔍 Testing {name}...")
+        
+        try:
+            if method == 'GET':
+                response = requests.get(url, headers=headers)
+            elif method == 'POST':
+                response = requests.post(url, json=data, headers=headers)
+            elif method == 'PUT':
+                response = requests.put(url, json=data, headers=headers)
+            elif method == 'DELETE':
+                response = requests.delete(url, headers=headers)
+
+            success = response.status_code == expected_status
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    return success, response.json()
+                except:
+                    return success, {}
+            else:
+                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
+                try:
+                    print(f"Response: {response.json()}")
+                except:
+                    print(f"Response: {response.text}")
+                return False, {}
+
+        except Exception as e:
+            print(f"❌ Failed - Error: {str(e)}")
+            return False, {}
+
+    def test_api_root(self):
+        """Test basic API connectivity"""
+        return self.run_test("API Root", "GET", "api", 200)
+
+    def test_init_admin(self):
+        """Test admin initialization"""
+        return self.run_test("Initialize Admin", "POST", "api/init-admin", 200)
+
+    def test_admin_login(self, email="admin@ketto.org", password="admin123"):
+        """Test admin login"""
+        success, response = self.run_test(
+            "Admin Login",
+            "POST",
+            "api/auth/login",
+            200,
+            data={"email": email, "password": password}
+        )
+        if success and 'access_token' in response:
+            self.admin_token = response['access_token']
+            print(f"Admin login successful, token obtained")
+            return True
+        return False
+
+    def test_employee_registration(self):
+        """Test employee registration"""
+        timestamp = datetime.now().strftime("%H%M%S")
+        employee_data = {
+            "name": f"Test Employee {timestamp}",
+            "email": f"employee{timestamp}@test.com",
+            "password": "test123",
+            "role": "employee",
+            "designation": "Software Engineer",
+            "business_unit": "Engineering",
+            "reporting_manager": "John Doe"
+        }
+        
+        success, response = self.run_test(
+            "Employee Registration",
+            "POST",
+            "api/auth/register",
+            200,
+            data=employee_data
+        )
+        
+        if success and 'access_token' in response:
+            self.employee_token = response['access_token']
+            self.employee_id = response['user']['id']
+            print(f"Employee registration successful, token obtained")
+            return True, employee_data
+        return False, None
+
+    def test_employee_login(self, email, password="test123"):
+        """Test employee login"""
+        success, response = self.run_test(
+            "Employee Login",
+            "POST",
+            "api/auth/login",
+            200,
+            data={"email": email, "password": password}
+        )
+        if success and 'access_token' in response:
+            self.token = response['access_token']
+            print(f"Employee login successful, token obtained")
+            return True
+        return False
+
+    def test_chat_with_careai(self, message="I'm feeling stressed at work"):
+        """Test chat with CareAI"""
+        if not self.token or not self.employee_id:
+            print("❌ Cannot test chat: No employee token or ID")
+            return False, None
+            
+        success, response = self.run_test(
+            "Chat with CareAI",
+            "POST",
+            "api/chat",
+            200,
+            data={"message": message, "user_id": self.employee_id},
+            token=self.token
+        )
+        
+        if success:
+            ai_response = response.get('response', '')
+            print(f"AI Response: {ai_response[:100]}...")
+            print(f"Ticket created: {response.get('ticket_created', False)}")
+            if response.get('ticket_created'):
+                print(f"Ticket ID: {response.get('ticket_id')}")
+            
+            # Check for hidden escalation markers
+            escalation_markers = ["ESCALATE:", "CATEGORY:", "SEVERITY:", "SUMMARY:"]
+            for marker in escalation_markers:
+                if marker in ai_response:
+                    print(f"❌ Found escalation marker in response: {marker}")
+                    return False, response
+            
+            print("✅ No escalation markers found in response")
+            return True, response
+        return False, None
+
+    def test_get_tickets(self):
+        """Test getting employee tickets"""
+        if not self.token:
+            print("❌ Cannot test tickets: No employee token")
+            return False, None
+            
+        success, response = self.run_test(
+            "Get Employee Tickets",
+            "GET",
+            "api/tickets",
+            200,
+            token=self.token
+        )
+        
+        if success:
+            print(f"Retrieved {len(response)} tickets")
+            return True, response
+        return False, None
+
+    def test_admin_get_tickets(self):
+        """Test admin getting all tickets"""
+        if not self.admin_token:
+            print("❌ Cannot test admin tickets: No admin token")
+            return False, None
+            
+        success, response = self.run_test(
+            "Admin Get All Tickets",
+            "GET",
+            "api/admin/tickets",
+            200,
+            token=self.admin_token
+        )
+        
+        if success:
+            print(f"Admin retrieved {len(response)} tickets")
+            return True, response
+        return False, None
+
+    def test_admin_get_users(self):
+        """Test admin getting all users"""
+        if not self.admin_token:
+            print("❌ Cannot test admin users: No admin token")
+            return False, None
+            
+        success, response = self.run_test(
+            "Admin Get All Users",
+            "GET",
+            "api/admin/users",
+            200,
+            token=self.admin_token
+        )
+        
+        if success:
+            print(f"Admin retrieved {len(response)} users")
+            return True, response
+        return False, None
+
+    def test_admin_create_user(self):
+        """Test admin creating a new user"""
+        if not self.admin_token:
+            print("❌ Cannot test user creation: No admin token")
+            return False, None
+            
+        timestamp = datetime.now().strftime("%H%M%S")
+        user_data = {
+            "name": f"Created User {timestamp}",
+            "email": f"created{timestamp}@test.com",
+            "password": "test123",
+            "role": "employee",
+            "designation": "QA Engineer",
+            "business_unit": "Quality Assurance",
+            "reporting_manager": "Jane Smith"
+        }
+        
+        success, response = self.run_test(
+            "Admin Create User",
+            "POST",
+            "api/admin/users",
+            200,
+            data=user_data,
+            token=self.admin_token
+        )
+        
+        if success:
+            print(f"Admin successfully created user: {user_data['email']}")
+            return True, user_data
+        return False, None
+
+    def test_admin_delete_user(self, user_id):
+        """Test admin deleting a user"""
+        if not self.admin_token:
+            print("❌ Cannot test user deletion: No admin token")
+            return False
+            
+        success, response = self.run_test(
+            "Admin Delete User",
+            "DELETE",
+            f"api/admin/users/{user_id}",
+            200,
+            token=self.admin_token
+        )
+        
+        return success
+        
+    def test_conversation_context(self, messages=None):
+        """Test conversation context with multiple messages"""
+        if not self.token or not self.employee_id:
+            print("❌ Cannot test conversation: No employee token or ID")
+            return False, None
+        
+        if messages is None:
+            messages = [
+                "I'm not feeling well",
+                "I'm having trouble with my work-life balance",
+                "My targets are not getting met, I am planning to resign"
+            ]
+        
+        print("\n🔍 Testing Conversation Context with multiple messages...")
+        responses = []
+        
+        for i, message in enumerate(messages):
+            print(f"\nMessage {i+1}: '{message}'")
+            success, response = self.run_test(
+                f"Chat message {i+1}",
+                "POST",
+                "api/chat",
+                200,
+                data={"message": message, "user_id": self.employee_id},
+                token=self.token
+            )
+            
+            if not success:
+                print(f"❌ Failed to send message {i+1}")
+                return False, responses
+            
+            ai_response = response.get('response', '')
+            ticket_created = response.get('ticket_created', False)
+            
+            print(f"AI Response: {ai_response[:100]}...")
+            print(f"Ticket created: {ticket_created}")
+            
+            # Check for hidden escalation markers
+            escalation_markers = ["ESCALATE:", "CATEGORY:", "SEVERITY:", "SUMMARY:"]
+            for marker in escalation_markers:
+                if marker in ai_response:
+                    print(f"❌ Found escalation marker in response: {marker}")
+                    return False, responses
+            
+            responses.append({
+                'message': message,
+                'response': ai_response,
+                'ticket_created': ticket_created,
+                'ticket_id': response.get('ticket_id')
+            })
+            
+            # Small delay to ensure messages are processed in order
+            time.sleep(1)
+        
+        # Analyze if the AI is using context from previous messages
+        if len(responses) > 1:
+            last_response = responses[-1]['response'].lower()
+            
+            # Check if the last response references previous messages
+            context_indicators = [
+                "as you mentioned", "you've shared", "from what you've told me",
+                "based on our conversation", "you've been feeling", "you said",
+                "you've expressed", "earlier you mentioned"
+            ]
+            
+            has_context = any(indicator in last_response for indicator in context_indicators)
+            
+            if has_context:
+                print("✅ AI response shows awareness of conversation context")
+            else:
+                print("⚠️ AI response may not be using conversation context")
+        
+        return True, responses
+
+    def test_email_config(self):
+        """Test email configuration"""
+        if not self.admin_token:
+            print("❌ Cannot test email config: No admin token")
+            return False
+            
+        config = {
+            "smtp_server": "smtp.example.com",
+            "smtp_port": 587,
+            "smtp_username": "test@example.com",
+            "smtp_password": "password123"
+        }
+        
+        success, response = self.run_test(
+            "Set Email Configuration",
+            "POST",
+            "api/admin/email-config",
+            200,
+            data=config,
+            token=self.admin_token
+        )
+        
+        if success:
+            # Get the config to verify
+            get_success, get_response = self.run_test(
+                "Get Email Configuration",
+                "GET",
+                "api/admin/email-config",
+                200,
+                token=self.admin_token
+            )
+            return get_success
+        return False
+
+    def test_gpt_config(self):
+        """Test GPT configuration"""
+        if not self.admin_token:
+            print("❌ Cannot test GPT config: No admin token")
+            return False
+        
+        # We'll use the existing API key from the .env file
+        config = {
+            "api_key": "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"
+        }
+        
+        success, response = self.run_test(
+            "Set GPT Configuration",
+            "POST",
+            "api/admin/gpt-config",
+            200,
+            data=config,
+            token=self.admin_token
+        )
+        
+        if success:
+            # Get the config to verify
+            get_success, get_response = self.run_test(
+                "Get GPT Configuration",
+                "GET",
+                "api/admin/gpt-config",
+                200,
+                token=self.admin_token
+            )
+            return get_success
+        return False
+
+def main():
+    # Get the backend URL from the frontend .env file
+    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    
+    print(f"Testing Ketto Care API at: {backend_url}")
+    tester = KettoCareAPITester(backend_url)
+    
+    # Test basic connectivity
+    tester.test_api_root()
+    
+    # Test admin initialization and login
+    tester.test_init_admin()
+    admin_login_success = tester.test_admin_login()
+    
+    if admin_login_success:
+        # Test admin endpoints
+        users_success, users = tester.test_admin_get_users()
+        tester.test_admin_get_tickets()
+        tester.test_email_config()
+        tester.test_gpt_config()
+        
+        # Test user management (create, delete)
+        create_success, created_user = tester.test_admin_create_user()
+        
+        if create_success and users_success:
+            # Verify user was created by getting all users again
+            users_after_success, users_after = tester.test_admin_get_users()
+            
+            if users_after_success:
+                # Find the created user in the list
+                created_user_id = None
+                for user in users_after:
+                    if user.get('email') == created_user['email']:
+                        created_user_id = user.get('id')
+                        break
+                
+                if created_user_id:
+                    # Test updating the user
+                    update_success, update_data = tester.test_admin_update_user(created_user_id)
+                    
+                    # Verify user was updated
+                    verify_update_success, users_after_update = tester.test_admin_get_users()
+                    
+                    if verify_update_success:
+                        # Find the updated user in the list
+                        updated_user = None
+                        for user in users_after_update:
+                            if user.get('id') == created_user_id:
+                                updated_user = user
+                                break
+                        
+                        if updated_user:
+                            print(f"Verified user update: {updated_user['name']}")
+                    
+                    # Test deleting the user
+                    tester.test_admin_delete_user(created_user_id)
+                    
+                    # Verify user was deleted
+                    tester.test_admin_get_users()
+    
+    # Test employee registration and login
+    reg_success, employee_data = tester.test_employee_registration()
+    if reg_success:
+        # Test employee login
+        login_success = tester.test_employee_login(employee_data["email"])
+        
+        if login_success:
+            # Test chat with CareAI
+            chat_success, chat_response = tester.test_chat_with_careai("I'm feeling overwhelmed with my workload and it's affecting my mental health")
+            
+            # Test getting tickets
+            tickets_success, tickets = tester.test_get_tickets()
+            
+            # If a ticket was created and we have admin access, test updating it
+            if chat_success and chat_response and chat_response.get('ticket_created') and admin_login_success:
+                ticket_id = chat_response.get('ticket_id')
+                tester.test_admin_update_ticket(ticket_id)
+                
+                # Verify the update by getting all tickets as admin
+                tester.test_admin_get_tickets()
+    
+    # Print test results
+    print("\n" + "="*50)
+    print(f"Test Results: {tester.tests_passed}/{tester.tests_run} tests passed")
+    print("="*50)
+    
+    return 0 if tester.tests_passed == tester.tests_run else 1
+
+if __name__ == "__main__":
+    main()
