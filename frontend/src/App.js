@@ -1781,7 +1781,9 @@ const AdminDashboard = () => {
   const uploadCsv = async (csvContent) => {
     try {
       const base64Content = btoa(csvContent);
-      const response = await axios.post(`${API}/admin/upload-users`, base64Content, {
+      const response = await axios.post(`${API}/admin/upload-users`, {
+        file_content: base64Content
+      }, {
         headers: { 'Content-Type': 'application/json' }
       });
       setShowCsvUpload(false);
@@ -1789,7 +1791,16 @@ const AdminDashboard = () => {
       alert(`CSV uploaded successfully! ${response.data.message}`);
     } catch (error) {
       console.error('Failed to upload CSV:', error);
-      alert('Failed to upload CSV: ' + (error.response?.data?.detail || 'Unknown error'));
+      // Better error handling
+      let errorMessage = 'Unknown error';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      alert('Failed to upload CSV: ' + errorMessage);
     }
   };
 

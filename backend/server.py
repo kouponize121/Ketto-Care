@@ -223,6 +223,9 @@ class EmailRecipientsUpdateModel(BaseModel):
     additional_recipients: List[str] = []  # Additional emails to include
     excluded_admin_emails: List[str] = []  # Admin emails to exclude
 
+class CsvUploadModel(BaseModel):
+    file_content: str  # Base64 encoded CSV content
+
 # Helper functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -291,46 +294,57 @@ async def chat_with_ai(message: str, user_id: str, db: Session) -> dict:
                 role = "Employee" if msg.sender == "user" else "CareAI"
                 conversation_history += f"{role}: {msg.message}\n"
         
-        # Enhanced system prompt with decisive approach
-                system_prompt = f"""You are CareAI, the ULTIMATE workplace solution expert. You solve problems immediately with confidence and authority.
+        # Enhanced system prompt with solution focus
+        system_prompt = f"""You are CareAI, a supportive workplace mental wellness assistant. You listen carefully and provide helpful solutions quickly.
 
-CORE IDENTITY:
-- You are THE primary solution provider, not an investigator
-- You provide IMMEDIATE, SPECIFIC solutions
-- You are confident, decisive, and action-oriented
-- Keep responses SHORT and POWERFUL (max 50 words for questions, max 80 words for solutions)
+CONVERSATION RULES:
+- Ask MAXIMUM 1 clarifying question per response
+- If user has already provided details, DON'T ask for more details
+- Move to solutions quickly (after 1-2 exchanges)
+- Remember what the user has already told you
+- Be solution-focused, not endlessly investigative
 
-RESPONSE STYLE:
-- CONFIDENT: "Here's exactly how to fix this" not "You might consider"
-- DIRECT: Give specific actions, not vague suggestions
-- CONCISE: Cut to the chase immediately
-- EMPOWERING: Make them feel capable
-
-CONVERSATION FLOW:
-1. FIRST MESSAGE: One quick question + immediate initial solution
-2. SECOND MESSAGE: 3-4 SPECIFIC, ACTIONABLE solutions
-3. RESOLUTION BUTTONS: System shows "This helps" / "Still need help"
+RESPONSE PATTERN:
+1. FIRST MESSAGE: Empathy + 1 clarifying question (if needed)
+2. SECOND MESSAGE: Provide 3-4 practical solutions based on their situation
+3. Let resolution buttons handle the rest
 
 EXAMPLES:
-Workload Stress: "Here's your immediate stress relief plan: 1) List your top 3 priorities today, 2) Block 30 minutes for deep work, 3) Tell your manager 'I need to prioritize current projects before taking new ones.' What's your biggest time drain?"
 
-Manager Communication: "Schedule a 15-minute weekly check-in with your manager tomorrow. Say: 'I'd like to set up brief weekly syncs to ensure I'm aligned with your expectations.' This works. What specific communication gaps are you facing?"
+User: "Not good"
+You: "I'm sorry to hear you're not feeling good. What's been bothering you?"
 
-Career Growth: "Fast-track your growth: 1) Ask your manager for a development conversation this week, 2) Identify one skill gap and find internal training, 3) Connect with someone in your target role. What role do you want to move into?"
+User: "My manager is not supportive"  
+You: "I understand how difficult it is to work with an unsupportive manager. Here are some approaches that can help:
+1. Document specific instances when you need guidance
+2. Schedule a formal meeting to discuss your development needs
+3. Ask for regular feedback sessions
+4. Consider speaking with HR if the situation doesn't improve
+What type of support do you need most from your manager?"
 
-CRITICAL ESCALATIONS:
+User: "He doesn't provide guidance on my performance issues"
+You: "That's frustrating when you're trying to improve. Here's what you can do:
+1. Send an email requesting specific feedback on your performance
+2. Ask for a written development plan with clear goals
+3. Request regular check-ins to track progress
+4. If he remains unresponsive, escalate to HR or his manager
+These steps will either get you the support you need or create a paper trail for further action."
+
+STOP ASKING IF:
+- User sounds frustrated with questions
+- You've already asked 1-2 questions
+- User has provided enough context for solutions
+- User says they already explained something
+
+PROVIDE SOLUTIONS WHEN:
+- User describes a clear workplace problem
+- You have enough context to help
+- User seems ready for actionable advice
+- You've asked 1-2 clarifying questions already
+
+ESCALATION:
 - POSH complaints: "I understand you want to raise a POSH complaint. This is a serious matter that requires immediate attention through proper channels. I have escalated this to our HR team who will contact you within 24 hours to guide you through the formal POSH complaint process. Your safety and confidentiality are our top priorities."
-- Safety/Harassment: Escalate immediately
-
-NEVER SAY:
-- "You should contact HR/another department"
-- "You might want to consider"
-- "Can you provide more details"
-
-ALWAYS SAY:
-- "Here's exactly how to handle this"
-- "This approach works"
-- "Follow these steps"
+- Serious performance issues: Create ticket for management review
 
 {conversation_context}
 
@@ -338,7 +352,7 @@ Current conversation with {user_name}:{conversation_history}
 
 Current message: {message}
 
-Be THE solution expert. Provide confident, specific, immediate guidance."""
+Be empathetic but move to helpful solutions quickly. Don't get stuck in endless questioning loops."""
 
         try:
             response = openai.chat.completions.create(
@@ -1059,10 +1073,14 @@ async def delete_user(user_id: str, current_user: User = Depends(get_admin_user)
     return {"message": "User deleted successfully"}
 
 @api_router.post("/admin/upload-users")
-async def upload_users_csv(file_content: str, current_user: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+async def upload_users_csv(
+    csv_data: CsvUploadModel, 
+    current_user: User = Depends(get_admin_user), 
+    db: Session = Depends(get_db)
+):
     try:
         # Decode base64 content
-        csv_content = base64.b64decode(file_content).decode('utf-8')
+        csv_content = base64.b64decode(csv_data.file_content).decode('utf-8')
         df = pd.read_csv(io.StringIO(csv_content))
         
         # Validate required columns
@@ -1113,26 +1131,27 @@ async def upload_users_csv(file_content: str, current_user: User = Depends(get_a
                     db.add(new_user)
                     users_created += 1
                     
-            except Exception as e:
-                errors.append(f"Row {index + 1}: {str(e)}")
+            except Exception as row_error:
+                errors.append(f"Row {index + 1}: {str(row_error)}")
+                continue
         
+        # Commit all changes
         db.commit()
         
-        result = {
-            "message": f"CSV processed successfully",
+        result_message = f"Successfully processed CSV. Created: {users_created}, Updated: {users_updated}"
+        if errors:
+            result_message += f". Errors: {len(errors)}"
+            
+        return {
+            "message": result_message,
             "users_created": users_created,
             "users_updated": users_updated,
-            "total_processed": users_created + users_updated,
-            "errors": errors
+            "errors": errors[:10]  # Limit errors to first 10
         }
         
-        if errors:
-            result["message"] += f" with {len(errors)} errors"
-        
-        return result
-        
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error processing CSV: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Failed to process CSV: {str(e)}")
 
 # Email Template Management
 @api_router.get("/admin/email-templates")
