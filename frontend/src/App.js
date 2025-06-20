@@ -2050,7 +2050,7 @@ const AdminDashboard = () => {
         updateData.password = formData.password;
       }
 
-      updateTicket(editingUser.id, updateData);
+      updateUser(editingUser.id, updateData);
     };
 
     const handleChange = (e) => {
