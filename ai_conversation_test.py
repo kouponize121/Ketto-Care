@@ -391,7 +391,7 @@ class AIConversationTester:
 
 def main():
     # Get the backend URL from the frontend .env file
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     
     print(f"Testing AI Conversation Tracking at: {backend_url}")
     tester = AIConversationTester(backend_url)

@@ -2,7 +2,7 @@ import requests
 import json
 import base64
 
-base_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+base_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
 
 print("🔍 TESTING FIXED CSV UPLOAD")
 print("="*50)

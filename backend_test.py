@@ -890,7 +890,7 @@ class KettoCareAPITester:
 
 def test_resolution_buttons_fix():
     """Test the resolution buttons fix with specific scenarios"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing Ketto Care API at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1066,7 +1066,7 @@ def test_resolution_buttons_fix():
 
 def comprehensive_test():
     """Run comprehensive tests of all Ketto Care functionality"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing Ketto Care API at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1369,7 +1369,7 @@ def comprehensive_test():
 
 def test_posh_complaint():
     """Test POSH complaint ticket creation"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing POSH complaint ticket creation at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1463,7 +1463,7 @@ def test_posh_complaint():
 
 def test_resolution_buttons_logic():
     """Test resolution buttons logic"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing resolution buttons logic at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1589,7 +1589,7 @@ def test_resolution_buttons_logic():
 
 def test_ticket_visibility():
     """Test ticket visibility for employee and admin"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing ticket visibility at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1675,7 +1675,7 @@ def test_ticket_visibility():
 
 def test_no_mock_ai_fallback():
     """Test that the system only uses OpenAI GPT API with no mock fallback"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing no mock AI fallback at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
@@ -1754,7 +1754,7 @@ def test_no_mock_ai_fallback():
 
 def test_end_to_end_workflow():
     """Test the end-to-end workflow"""
-    backend_url = "https://9456fd82-d41d-48e0-b85e-e00275813adc.preview.emergentagent.com"
+    backend_url = "https://f260db41-e692-4f6c-aedc-6884036a152a.preview.emergentagent.com"
     print(f"Testing end-to-end workflow at: {backend_url}")
     tester = KettoCareAPITester(backend_url)
     
