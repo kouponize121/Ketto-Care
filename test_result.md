@@ -101,3 +101,86 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+## user_problem_statement: "Fix the resolution buttons issue in Ketto Care system - show_resolution_buttons not appearing in API response, preventing full escalation workflow testing"
+
+## backend:
+  - task: "CareAI Chat Processing"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Backend logic for show_resolution_buttons is properly implemented in chat_with_ai function (lines 476-523). Resolution endpoint exists at /chat/resolution. Need to test if buttons appear correctly."
+
+  - task: "Resolution Buttons Logic"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Complex logic in place to determine when to show resolution buttons based on solution indicators, numbered lists, and question detection. Need to verify if this logic works correctly in practice."
+
+  - task: "Resolution Endpoint"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Resolution endpoint at /chat/resolution properly handles 'helpful' and 'need_help' responses, creates tickets for escalation."
+
+## frontend:
+  - task: "Resolution Buttons UI"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Frontend correctly checks for message.showResolutionButtons and renders buttons. handleResolution function properly calls backend. Need to test if buttons actually appear."
+
+  - task: "Chat Interface Integration"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/App.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Chat interface captures show_resolution_buttons from API and stores in message object. Need to verify complete workflow."
+
+## metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+## test_plan:
+  current_focus:
+    - "CareAI Chat Processing"
+    - "Resolution Buttons Logic"
+    - "Resolution Buttons UI"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+## agent_communication:
+  - agent: "main"
+    message: "System analysis complete. Backend and frontend code for resolution buttons appears correct. Need to test if the complex logic for determining when to show buttons works properly. Dependencies installed and services restarted successfully."
