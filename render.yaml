@@ -4,11 +4,15 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    startCommand: |
+      export PYTHONPATH=/opt/render/project/src:$PYTHONPATH
+      uvicorn backend.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
-        value: /opt/render/project/src
+        value: /opt/render/project/src:/opt/render/project/src/backend
       - key: PORT
         generateValue: true
       - key: OPENAI_API_KEY
