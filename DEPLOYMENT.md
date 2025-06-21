@@ -23,10 +23,14 @@ Your Ketto Care application is now deployment-ready for multiple platforms!
 ### 2. Render (Full Stack)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
+**Fixed: Requirements.txt Path Issue**
+
 1. Connect GitHub repository
 2. Select "Web Service"
-3. Uses `render.yaml` automatically
+3. Uses `render.yaml` automatically (now with correct paths)
 4. Set `OPENAI_API_KEY` in dashboard
+
+**Note**: I've added `requirements.txt` to the root directory and created a `build.sh` script to ensure Render finds all dependencies correctly.
 
 ### 3. Vercel (Full Stack)
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
