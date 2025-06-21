@@ -4,18 +4,7 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: |
-      # Install Python dependencies
-      pip install -r requirements.txt
-      
-      # Build frontend
-      cd frontend
-      npm install
-      npm run build
-      cd ..
-      
-      # Verify build
-      ls -la frontend/build/ && echo "✅ Frontend build completed"
+    buildCommand: ./simple-build.sh
     startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
