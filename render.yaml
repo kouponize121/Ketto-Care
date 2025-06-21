@@ -8,16 +8,19 @@ services:
       # Install Python dependencies
       pip install -r requirements.txt
       
-      # Install and build frontend
-      curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-      sudo apt-get install -y nodejs
+      # Build frontend with environment variables
       cd frontend
       npm install --legacy-peer-deps
+      
+      # Set environment variable for build
+      echo "REACT_APP_BACKEND_URL=https://ketto-care.onrender.com" > .env
+      
+      # Build the frontend
       npm run build
       cd ..
       
       # Verify build
-      ls -la frontend/build || echo "Build directory not found"
+      ls -la frontend/build/ && echo "✅ Frontend build successful"
     startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
