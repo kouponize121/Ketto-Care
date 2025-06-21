@@ -23,14 +23,25 @@ Your Ketto Care application is now deployment-ready for multiple platforms!
 ### 2. Render (Full Stack)
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
 
-**Fixed: Requirements.txt Path Issue**
+**✅ Fixed: 404 Error Resolved**
 
+**Option 1: Single Service (Recommended)**
 1. Connect GitHub repository
 2. Select "Web Service"
-3. Uses `render.yaml` automatically (now with correct paths)
+3. Uses `render.yaml` automatically (now builds frontend + backend)
 4. Set `OPENAI_API_KEY` in dashboard
+5. Set `SECRET_KEY` in dashboard
 
-**Note**: I've added `requirements.txt` to the root directory and created a `build.sh` script to ensure Render finds all dependencies correctly.
+**Option 2: Separate Services**
+If Option 1 doesn't work, use `render-separate.yaml`:
+1. Rename `render-separate.yaml` to `render.yaml`
+2. This creates separate frontend and backend services
+3. More reliable but uses 2 services
+
+**Fix Applied**: 
+- Backend now serves React frontend files for production
+- Build process includes frontend compilation
+- Root path `/` now serves the React app instead of 404
 
 ### 3. Vercel (Full Stack)
 [![Deploy to Vercel](https://vercel.com/button)](https://vercel.com/new)
