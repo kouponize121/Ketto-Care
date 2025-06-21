@@ -28,7 +28,7 @@ import {
 import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `http://localhost:8000/api`;
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // AuthContext
 const AuthContext = React.createContext();
