@@ -8,19 +8,14 @@ services:
       # Install Python dependencies
       pip install -r requirements.txt
       
-      # Build frontend with environment variables
+      # Build frontend
       cd frontend
-      npm install --legacy-peer-deps
-      
-      # Set environment variable for build
-      echo "REACT_APP_BACKEND_URL=https://ketto-care.onrender.com" > .env
-      
-      # Build the frontend
+      npm install
       npm run build
       cd ..
       
       # Verify build
-      ls -la frontend/build/ && echo "✅ Frontend build successful"
+      ls -la frontend/build/ && echo "✅ Frontend build completed"
     startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
