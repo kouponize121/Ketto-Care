@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=sqlite:///./ketto_care.db
+    volumes:
+      - ./backend:/app/backend
+      - ./ketto_care.db:/app/ketto_care.db
+    networks:
+      - ketto-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    networks:
+      - ketto-network
+    depends_on:
+      - backend
+
+networks:
+  ketto-network:
+    driver: bridge
