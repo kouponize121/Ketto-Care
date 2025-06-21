@@ -1405,6 +1405,36 @@ async def root():
 # Include the router in the main app
 app.include_router(api_router)
 
+# Static files and frontend serving for production deployment
+static_dir = Path(__file__).parent.parent / "frontend" / "build"
+if static_dir.exists():
+    # Mount static files
+    app.mount("/static", StaticFiles(directory=static_dir / "static"), name="static")
+    
+    # Serve frontend for all non-API routes
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # If it's an API call, let it go to the API router (this shouldn't happen due to mounting order)
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        
+        # For all other paths, serve the React app
+        index_file = static_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        else:
+            raise HTTPException(status_code=404, detail="Frontend not built")
+else:
+    # Fallback for development or when frontend is not built
+    @app.get("/")
+    async def root():
+        return {
+            "message": "Ketto Care API is running", 
+            "version": "1.0.0", 
+            "status": "healthy",
+            "note": "Frontend not found. For production, build the React frontend first."
+        }
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
