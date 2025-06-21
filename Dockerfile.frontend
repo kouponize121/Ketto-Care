@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY frontend/package*.json ./
+COPY frontend/yarn.lock* ./
+
+# Install dependencies
+RUN npm install
+
+# Copy frontend code
+COPY frontend/ .
+
+# Build the application
+RUN npm run build
+
+# Serve with a simple server
+RUN npm install -g serve
+
+# Expose port
+EXPOSE 3000
+
+# Start the application
+CMD ["serve", "-s", "build", "-l", "3000"]

@@ -1,0 +1,37 @@
+{
+  "name": "ketto-care",
+  "version": "1.0.0",
+  "description": "Employee Mental Wellness and Grievance Management Platform",
+  "main": "backend/server.py",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && uvicorn server:app --host 0.0.0.0 --port 8000 --reload",
+    "frontend": "cd frontend && npm start",
+    "build": "cd frontend && npm run build",
+    "install-deps": "pip install -r backend/requirements.txt && cd frontend && npm install",
+    "start": "uvicorn backend.server:app --host 0.0.0.0 --port $PORT",
+    "deploy:railway": "railway up",
+    "deploy:vercel": "vercel",
+    "deploy:render": "echo 'Push to GitHub and connect to Render'",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up",
+    "docker:down": "docker-compose down"
+  },
+  "keywords": [
+    "mental-wellness",
+    "employee-care",
+    "grievance-management",
+    "ai-assistant",
+    "fastapi",
+    "react"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "python": ">=3.11.0"
+  }
+}
