@@ -1,0 +1,16 @@
+[build]
+  base = "frontend/"
+  publish = "frontend/build/"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+  REACT_APP_BACKEND_URL = "https://your-backend-url.railway.app"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
